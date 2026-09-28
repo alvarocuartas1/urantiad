@@ -8,7 +8,7 @@ Sistema web full stack de **POS + Inventario + Compras + Proveedores + Caja + Re
 
 | Capa | Tecnologías |
 |---|---|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, React Router, TanStack Query |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, React Router, TanStack Query, React Hook Form + Zod |
 | Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (síncrono), Alembic, psycopg 3 |
 | Base de datos | PostgreSQL 17 |
 | Calidad | Ruff, pytest, ESLint, Prettier, Vitest, React Testing Library |
@@ -46,6 +46,7 @@ docs/postman/      # colección "URANTIAD API"
 - Contraseñas con hash **Argon2**. Bloqueo temporal tras varios intentos fallidos.
 - Autorización por **permisos** (`users.read`, `users.manage`, …) asignados a roles (Administrador, Cajero, Inventario). Cada endpoint declara el permiso que exige con `require_permission(...)`. Roles y permisos se crean por migración.
 - Los usuarios no se borran: se desactivan (pierden el acceso de inmediato).
+- En el frontend el access token vive **solo en memoria** (nunca en `localStorage`). Al recargar la página la sesión se recupera con `POST /auth/refresh`; ante un 401 el cliente HTTP renueva la sesión una vez y repite la petición. Las rutas se protegen con `ProtectedRoute` y `RequirePermission`, y el menú muestra solo las secciones permitidas (el backend valida siempre).
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

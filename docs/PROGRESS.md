@@ -7,7 +7,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | # | Etapa | Estado |
 |---|---|---|
 | 0 | Configuración inicial: estructura del repo, Docker Compose (PostgreSQL + backend + frontend), FastAPI base, Vite + React + Tailwind, Alembic, Ruff/ESLint, `.env.example`, CI en GitHub Actions | Terminada |
-| 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | En curso (1a backend terminada; 1b frontend pendiente) |
+| 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Pendiente |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Pendiente |
 | 4 | Proveedores y productos por proveedor | Pendiente |
@@ -37,13 +37,14 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Constraints con nombres deterministas (`naming_convention` en `Base.metadata`).
 - Errores: `AppError(detail, code, status_code)` en servicios; handlers globales devuelven `{detail, code}` (404/405/422/500 incluidos).
 - Tests backend: base `urantiad_test`, migraciones Alembic una vez por sesión, cada test en transacción revertida (`join_transaction_mode="create_savepoint"`).
-- Vitest con `pool: 'threads'` (el pool `forks` no arranca a tiempo en Windows).
+- Vitest con `pool: 'threads'` (el pool `forks` es lento en Windows). En la primera ejecución en frío puede aparecer `Timeout waiting for worker to respond` (límite fijo de 60 s de Vitest): repetir la ejecución; no es un test fallido.
 - React Hook Form + Zod se instalan en la Etapa 1b (primer formulario).
 - Sesión: access token JWT de 15 min + refresh token rotativo de 12 h en cookie `httpOnly` (hash SHA-256 en `refresh_tokens`); reutilizar un token rotado revoca todas las sesiones.
 - Contraseñas con Argon2 (`pwdlib`). Bloqueo de 15 min tras 5 intentos fallidos.
 - Un rol por usuario. Roles fijos (admin, cashier, inventory). Permisos explícitos también para el admin (sin bypass): cada etapa añade sus permisos en `app/core/permissions.py` y en su migración, asignándolos a los roles.
 - Usuarios nunca se borran (se desactivan). Siempre debe quedar un administrador activo.
 - Primer administrador: `python -m app.cli create-admin` (sin contraseñas en código ni migraciones).
+- Frontend: access token en memoria; `AuthProvider` restaura la sesión con `/auth/refresh`; `apiClient` comparte una única petición de refresh entre llamadas concurrentes (evita falsos positivos de reutilización de token).
 - Paginación: `Page[T]` = `{items, total, page, size}`, `size` máx. 100.
 
 ## Registro de etapas terminadas
@@ -62,3 +63,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Endpoints `/auth/login|refresh|logout|me|me/password`, `/users` (listar, obtener, crear, editar, restablecer contraseña) y `/roles`.
 - Dependencias `get_current_user` y `require_permission`. Comando `create-admin`. Colección Postman actualizada.
 - 54 tests backend.
+
+### Etapa 1b — Autenticación (frontend)
+- `AuthProvider` + `useAuth`, `apiClient` con Bearer, refresh automático ante 401 y cierre de sesión si falla.
+- Rutas: `/login`, `ProtectedRoute`, `RequirePermission`, `AppLayout` (menú filtrado por permisos, cambio de contraseña, cerrar sesión).
+- Página de usuarios: listado paginado con búsqueda y filtro de estado, crear/editar, activar/desactivar, restablecer contraseña.
+- Componentes UI base: `Button`, `TextField`, `SelectField`, `Modal`, `Alert`, `StatusBadge`, `Pagination`.
+- 14 tests frontend (apiClient, login, protección de rutas, inicio).
