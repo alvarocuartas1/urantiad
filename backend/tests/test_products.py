@@ -69,6 +69,27 @@ def test_cashier_can_read_but_not_manage_products(
     assert client.patch(f"{PRODUCTS_URL}/1", json={}, headers=headers).status_code == 403
 
 
+def test_costs_are_hidden_without_view_costs_permission(
+    client: TestClient,
+    db_session: Session,
+    category: Category,
+    cashier: User,
+    manager_headers: dict[str, str],
+    auth_headers: AuthHeaders,
+) -> None:
+    product = add_product(db_session, category, "BEB-1", average_cost=Decimal(700))
+    url = f"{PRODUCTS_URL}/{product.id}"
+
+    as_cashier = client.get(url, headers=auth_headers(cashier)).json()
+    listed = client.get(PRODUCTS_URL, headers=auth_headers(cashier)).json()["items"][0]
+    as_manager = client.get(url, headers=manager_headers).json()
+
+    assert (as_cashier["average_cost"], as_cashier["last_cost"]) == (None, None)
+    assert listed["average_cost"] is None
+    assert Decimal(as_cashier["sale_price"]) == 1000
+    assert Decimal(as_manager["average_cost"]) == 700
+
+
 # --- Creation ------------------------------------------------------------------------
 
 

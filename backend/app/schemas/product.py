@@ -1,10 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Self
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints
 
-from app.models import ProductType, StockStatus, UnitOfMeasure
+from app.core.permissions import PermissionCode
+from app.models import Product, ProductType, StockStatus, UnitOfMeasure, User
 from app.schemas.category import CategorySummary
 from app.schemas.common import ORMModel, PartialUpdate, optional_text
 
@@ -99,8 +100,8 @@ class ProductResponse(ORMModel):
     unit_of_measure: UnitOfMeasure
     tax_rate: Decimal
     sale_price: Decimal
-    average_cost: Decimal
-    last_cost: Decimal
+    average_cost: Decimal | None = Field(description="Nulo sin el permiso products.view_costs.")
+    last_cost: Decimal | None = Field(description="Nulo sin el permiso products.view_costs.")
     current_stock: Decimal
     min_stock: Decimal
     reorder_point: Decimal
@@ -111,6 +112,14 @@ class ProductResponse(ORMModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    @classmethod
+    def for_user(cls, product: Product, user: User) -> Self:
+        """Response for `user`: costs are hidden unless they may view them."""
+        response = cls.model_validate(product)
+        if PermissionCode.PRODUCTS_VIEW_COSTS not in user.permission_codes:
+            response = response.model_copy(update={"average_cost": None, "last_cost": None})
+        return response
 
 
 class UserSummary(ORMModel):

@@ -611,7 +611,7 @@
                 }
               ]
             },
-            "description": "Permiso products.read. Paginado. search busca en nombre, SKU y código de barras. type: product|service. stock_status: ok|low|critical|out_of_stock."
+            "description": "Permiso products.read. Paginado. search busca en nombre, SKU y código de barras. type: product|service. stock_status: ok|low|critical|out_of_stock. Sin el permiso products.view_costs, average_cost y last_cost llegan en null."
           }
         },
         {
@@ -628,7 +628,7 @@
                 "{{productId}}"
               ]
             },
-            "description": "Permiso products.read. 404 PRODUCT_NOT_FOUND."
+            "description": "Permiso products.read. 404 PRODUCT_NOT_FOUND. Sin el permiso products.view_costs, average_cost y last_cost llegan en null."
           }
         },
         {

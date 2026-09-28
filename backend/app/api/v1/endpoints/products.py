@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import DbSession, require_permission
 from app.core.permissions import PermissionCode
-from app.models import Product, ProductType, StockStatus, User
+from app.models import ProductType, StockStatus, User
 from app.schemas.common import Page, PageParams, page_params
 from app.schemas.product import (
     PriceHistoryResponse,
@@ -22,7 +22,7 @@ ProductsManager = Annotated[User, require_permission(PermissionCode.PRODUCTS_MAN
 
 @router.get("", response_model=Page[ProductResponse])
 def list_products(
-    _: ProductsReader,
+    user: ProductsReader,
     db: DbSession,
     params: Annotated[PageParams, Depends(page_params)],
     search: Annotated[
@@ -45,7 +45,7 @@ def list_products(
         stock_status=stock_status,
     )
     return Page(
-        items=[ProductResponse.model_validate(p) for p in products],
+        items=[ProductResponse.for_user(p, user) for p in products],
         total=total,
         page=params.page,
         size=params.size,
@@ -53,22 +53,23 @@ def list_products(
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
-def get_product(product_id: int, _: ProductsReader, db: DbSession) -> Product:
-    return product_service.get_product(db, product_id)
+def get_product(product_id: int, user: ProductsReader, db: DbSession) -> ProductResponse:
+    return ProductResponse.for_user(product_service.get_product(db, product_id), user)
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(body: ProductCreate, actor: ProductsManager, db: DbSession) -> Product:
+def create_product(body: ProductCreate, actor: ProductsManager, db: DbSession) -> ProductResponse:
     """Crea un producto o servicio. El stock inicia en 0 y cambia solo con movimientos."""
-    return product_service.create_product(db, actor, body)
+    return ProductResponse.for_user(product_service.create_product(db, actor, body), actor)
 
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 def update_product(
     product_id: int, body: ProductUpdate, actor: ProductsManager, db: DbSession
-) -> Product:
+) -> ProductResponse:
     """Actualiza datos, precio, niveles de stock o estado. Los cambios de precio se historizan."""
-    return product_service.update_product(db, actor, product_id, body)
+    product = product_service.update_product(db, actor, product_id, body)
+    return ProductResponse.for_user(product, actor)
 
 
 @router.get("/{product_id}/price-history", response_model=Page[PriceHistoryResponse])
