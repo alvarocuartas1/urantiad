@@ -34,6 +34,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://urantiad:urantiad@localhost:5432/urantiad_test
       TEST_DATABASE_URL: postgresql+psycopg://urantiad:urantiad@localhost:5432/urantiad_test
+      JWT_SECRET_KEY: ci-only-secret-key-with-at-least-32-characters
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7

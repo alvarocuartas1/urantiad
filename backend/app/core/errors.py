@@ -25,6 +25,26 @@ class AppError(Exception):
             self.status_code = status_code
 
 
+class UnauthorizedError(AppError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "UNAUTHORIZED"
+
+
+class ForbiddenError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "PERMISSION_DENIED"
+
+
+class NotFoundError(AppError):
+    status_code = status.HTTP_404_NOT_FOUND
+    code = "NOT_FOUND"
+
+
+class ConflictError(AppError):
+    status_code = status.HTTP_409_CONFLICT
+    code = "CONFLICT"
+
+
 HTTP_STATUS_CODES = {
     400: ("BAD_REQUEST", "Solicitud inválida."),
     401: ("UNAUTHORIZED", "No autenticado."),
@@ -51,7 +71,10 @@ def _format_validation_error(exc: RequestValidationError) -> str:
 
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
-    return error_response(exc.status_code, exc.detail, exc.code)
+    response = error_response(exc.status_code, exc.detail, exc.code)
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        response.headers["WWW-Authenticate"] = "Bearer"
+    return response
 
 
 async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
