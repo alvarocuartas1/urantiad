@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,10 +13,7 @@ from app.models import Role, User
 from app.schemas.common import PageParams
 from app.schemas.user import UserCreate, UserUpdate
 from app.services.auth_service import revoke_user_sessions
-
-
-def _escape_like(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+from app.services.query import contains_pattern, paginate
 
 
 def _username_taken() -> ConflictError:
@@ -35,19 +32,12 @@ def list_users(
 ) -> tuple[Sequence[User], int]:
     stmt = select(User)
     if search and search.strip():
-        pattern = f"%{_escape_like(search.strip())}%"
+        pattern = contains_pattern(search.strip())
         stmt = stmt.where(or_(User.username.ilike(pattern), User.full_name.ilike(pattern)))
     if is_active is not None:
         stmt = stmt.where(User.is_active == is_active)
-
-    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    users = db.scalars(
-        stmt.options(selectinload(User.role))
-        .order_by(User.full_name, User.id)
-        .offset(params.offset)
-        .limit(params.size)
-    ).all()
-    return users, total
+    stmt = stmt.options(selectinload(User.role)).order_by(User.full_name, User.id)
+    return paginate(db, stmt, params)
 
 
 def get_user(db: Session, user_id: int, *, for_update: bool = False) -> User:

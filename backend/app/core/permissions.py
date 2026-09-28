@@ -17,3 +17,5 @@ class PermissionCode(StrEnum):
     USERS_READ = "users.read"
     USERS_MANAGE = "users.manage"
     ROLES_READ = "roles.read"
+    PRODUCTS_READ = "products.read"
+    PRODUCTS_MANAGE = "products.manage"

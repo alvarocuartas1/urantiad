@@ -319,7 +319,14 @@ def test_list_roles(client: TestClient, admin: User, auth_headers: AuthHeaders) 
         "users.read",
         "users.manage",
         "roles.read",
+        "products.read",
+        "products.manage",
     }
+    assert {p["code"] for p in roles["inventory"]["permissions"]} == {
+        "products.read",
+        "products.manage",
+    }
+    assert {p["code"] for p in roles["cashier"]["permissions"]} == {"products.read"}
 
 
 # --- CLI -----------------------------------------------------------------------------

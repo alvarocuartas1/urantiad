@@ -48,6 +48,15 @@ docs/postman/      # colección "URANTIAD API"
 - Los usuarios no se borran: se desactivan (pierden el acceso de inmediato).
 - En el frontend el access token vive **solo en memoria** (nunca en `localStorage`). Al recargar la página la sesión se recupera con `POST /auth/refresh`; ante un 401 el cliente HTTP renueva la sesión una vez y repite la petición. Las rutas se protegen con `ProtectedRoute` y `RequirePermission`, y el menú muestra solo las secciones permitidas (el backend valida siempre).
 
+### Catálogo (categorías y productos)
+
+- Un producto es `type = product` (maneja inventario) o `type = service` (fotocopias, impresiones: sin stock).
+- El **precio de venta incluye IVA** (`tax_rate` es el porcentaje incluido). Cada cambio de precio queda en `product_price_history`.
+- El stock y el costo de los productos **no se editan**: cambian solo con movimientos de inventario (ajustes y compras). Los servicios tienen un costo de referencia manual.
+- `stock_status` se calcula (no se guarda): `out_of_stock` (stock ≤ 0), `critical` (≤ mínimo), `low` (≤ punto de reorden) u `ok`.
+- La búsqueda por nombre, SKU o código de barras usa índices trigram (`pg_trgm`, creada por la migración).
+- Una categoría con productos no se elimina: se desactiva.
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos

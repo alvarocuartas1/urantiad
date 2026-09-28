@@ -8,7 +8,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 |---|---|---|
 | 0 | Configuración inicial: estructura del repo, Docker Compose (PostgreSQL + backend + frontend), FastAPI base, Vite + React + Tailwind, Alembic, Ruff/ESLint, `.env.example`, CI en GitHub Actions | Terminada |
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
-| 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Pendiente |
+| 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | En curso (2a terminada) |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Pendiente |
 | 4 | Proveedores y productos por proveedor | Pendiente |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
@@ -46,6 +46,13 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Primer administrador: `python -m app.cli create-admin` (sin contraseñas en código ni migraciones).
 - Frontend: access token en memoria; `AuthProvider` restaura la sesión con `/auth/refresh`; `apiClient` comparte una única petición de refresh entre llamadas concurrentes (evita falsos positivos de reutilización de token).
 - Paginación: `Page[T]` = `{items, total, page, size}`, `size` máx. 100.
+- Precio de venta con IVA incluido (`tax_rate` = % incluido). El margen bruto se calcula sobre el precio sin IVA.
+- Costo de productos físicos: solo lo cambian los movimientos (0 al crear). Servicios: costo de referencia manual.
+- Categoría obligatoria en todo producto. `type` no cambia tras crear. Productos nunca se borran (se desactivan).
+- `stock_status` calculado (hybrid property: Python + `CASE` SQL), no almacenado. Sin CHECK `current_stock >= 0` en BD: la regla de stock negativo vive en el servicio (configurable).
+- Historial de precios de venta (`product_price_history`) desde la creación; historial de costos llega en la Etapa 5.
+- PATCH: campos omitidos no cambian; `null` solo en campos anulables (`PartialUpdate`). Bodies con `extra="forbid"`.
+- Conflictos de unicidad se traducen por nombre de constraint (`violated_constraint`).
 
 ## Registro de etapas terminadas
 
@@ -70,3 +77,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Página de usuarios: listado paginado con búsqueda y filtro de estado, crear/editar, activar/desactivar, restablecer contraseña.
 - Componentes UI base: `Button`, `TextField`, `SelectField`, `Modal`, `Alert`, `StatusBadge`, `Pagination`.
 - 14 tests frontend (apiClient, login, protección de rutas, inicio).
+
+### Etapa 2a — Categorías y productos (backend)
+- Tablas `categories` (nombre único sin distinguir mayúsculas), `products` (producto/servicio, SKU y código de barras únicos, IVA, precio, costos, stock y niveles con CHECKs) y `product_price_history`. Extensión `pg_trgm` para búsquedas.
+- Permisos `products.read` (admin, cajero, inventario) y `products.manage` (admin, inventario).
+- Endpoints `/categories` (CRUD; eliminar solo sin productos) y `/products` (listar con búsqueda y filtros por categoría, tipo, estado y nivel de stock; crear; editar; historial de precios).
+- Utilidades compartidas `services/query.py` (búsqueda, paginación, errores de constraint). Colección Postman actualizada.
+- 101 tests backend.
