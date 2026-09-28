@@ -3,6 +3,9 @@ export const PERMISSIONS = {
   usersRead: 'users.read',
   usersManage: 'users.manage',
   rolesRead: 'roles.read',
+  productsRead: 'products.read',
+  productsManage: 'products.manage',
+  productsViewCosts: 'products.view_costs',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

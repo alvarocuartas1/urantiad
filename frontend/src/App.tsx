@@ -3,8 +3,10 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RequirePermission } from '@/components/auth/RequirePermission'
 import { AppLayout } from '@/components/layout/AppLayout'
+import CategoriesPage from '@/pages/CategoriesPage'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
+import ProductsPage from '@/pages/ProductsPage'
 import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
 
@@ -19,6 +21,10 @@ function App() {
               <Route index element={<HomePage />} />
               <Route element={<RequirePermission permission={PERMISSIONS.usersRead} />}>
                 <Route path="usuarios" element={<UsersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.productsRead} />}>
+                <Route path="productos" element={<ProductsPage />} />
+                <Route path="categorias" element={<CategoriesPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

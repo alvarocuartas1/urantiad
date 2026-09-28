@@ -53,9 +53,11 @@ docs/postman/      # colección "URANTIAD API"
 - Un producto es `type = product` (maneja inventario) o `type = service` (fotocopias, impresiones: sin stock).
 - El **precio de venta incluye IVA** (`tax_rate` es el porcentaje incluido). Cada cambio de precio queda en `product_price_history`.
 - El stock y el costo de los productos **no se editan**: cambian solo con movimientos de inventario (ajustes y compras). Los servicios tienen un costo de referencia manual.
+- Los costos solo se muestran con el permiso `products.view_costs` (administrador e inventario); para el cajero la API los devuelve en `null`.
 - `stock_status` se calcula (no se guarda): `out_of_stock` (stock ≤ 0), `critical` (≤ mínimo), `low` (≤ punto de reorden) u `ok`.
 - La búsqueda por nombre, SKU o código de barras usa índices trigram (`pg_trgm`, creada por la migración).
 - Una categoría con productos no se elimina: se desactiva.
+- En el frontend los importes viajan como texto decimal (`"2500.00"`) y nunca se convierten a `number`: se formatean con `Intl` y se comparan en centavos (`utils/decimal.ts`). Los campos numéricos rechazan puntos de miles ("2.500") para no confundirlos con decimales.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

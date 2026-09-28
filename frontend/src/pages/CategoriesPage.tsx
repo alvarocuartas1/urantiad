@@ -1,38 +1,38 @@
 import { LoaderCircle, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { CategoriesTable } from '@/components/categories/CategoriesTable'
+import { CategoryFormModal } from '@/components/categories/CategoryFormModal'
+import { DeleteCategoryModal } from '@/components/categories/DeleteCategoryModal'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { FilterSelect, SearchInput } from '@/components/ui/ListFilters'
 import { Pagination } from '@/components/ui/Pagination'
-import { ResetPasswordModal } from '@/components/users/ResetPasswordModal'
-import { UserFormModal } from '@/components/users/UserFormModal'
-import { UsersTable } from '@/components/users/UsersTable'
 import { useAuth } from '@/hooks/useAuth'
+import { useCategories } from '@/hooks/useCategories'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { useUsers } from '@/hooks/useUsers'
 import { PERMISSIONS } from '@/types/auth'
-import type { User } from '@/types/user'
+import type { Category } from '@/types/catalog'
 import { getErrorMessage } from '@/utils/errors'
 import { ACTIVE_FILTER_VALUES, type ActiveFilter } from '@/utils/filters'
 
 const PAGE_SIZE = 20
 
-type ModalState = { type: 'create' } | { type: 'edit' | 'password'; user: User } | null
+type ModalState = { type: 'create' } | { type: 'edit' | 'delete'; category: Category } | null
 
-function UsersPage() {
+function CategoriesPage() {
   const { hasPermission } = useAuth()
-  const canManage = hasPermission(PERMISSIONS.usersManage)
+  const canManage = hasPermission(PERMISSIONS.productsManage)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ActiveFilter>('active')
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active')
   const [modal, setModal] = useState<ModalState>(null)
   const debouncedSearch = useDebouncedValue(search.trim())
 
-  const { data, isPending, isError, error, isFetching } = useUsers({
+  const { data, isPending, isError, error, isFetching } = useCategories({
     page,
     size: PAGE_SIZE,
     search: debouncedSearch || undefined,
-    is_active: ACTIVE_FILTER_VALUES[statusFilter],
+    is_active: ACTIVE_FILTER_VALUES[activeFilter],
   })
 
   const closeModal = () => setModal(null)
@@ -40,20 +40,20 @@ function UsersPage() {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Usuarios</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Categorías</h1>
         {canManage && (
           <Button onClick={() => setModal({ type: 'create' })}>
             <Plus aria-hidden="true" className="size-4" />
-            Nuevo usuario
+            Nueva categoría
           </Button>
         )}
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
         <SearchInput
-          label="Buscar usuarios"
+          label="Buscar categorías"
           value={search}
-          placeholder="Buscar por usuario o nombre…"
+          placeholder="Buscar por nombre…"
           onChange={(value) => {
             setSearch(value)
             setPage(1)
@@ -61,15 +61,15 @@ function UsersPage() {
         />
         <FilterSelect
           label="Estado"
-          value={statusFilter}
+          value={activeFilter}
           onChange={(value) => {
-            setStatusFilter(value as ActiveFilter)
+            setActiveFilter(value as ActiveFilter)
             setPage(1)
           }}
         >
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
-          <option value="all">Todos</option>
+          <option value="active">Activas</option>
+          <option value="inactive">Inactivas</option>
+          <option value="all">Todas</option>
         </FilterSelect>
         {isFetching && !isPending && (
           <LoaderCircle aria-label="Actualizando" className="size-4 animate-spin text-slate-500" />
@@ -77,19 +77,19 @@ function UsersPage() {
       </div>
 
       {isError && <Alert>{getErrorMessage(error)}</Alert>}
-      {isPending && <p className="text-sm text-slate-600">Cargando usuarios…</p>}
+      {isPending && <p className="text-sm text-slate-600">Cargando categorías…</p>}
       {data &&
         (data.items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">
-            No se encontraron usuarios.
+            No se encontraron categorías.
           </p>
         ) : (
           <>
-            <UsersTable
-              users={data.items}
+            <CategoriesTable
+              categories={data.items}
               canManage={canManage}
-              onEdit={(user) => setModal({ type: 'edit', user })}
-              onResetPassword={(user) => setModal({ type: 'password', user })}
+              onEdit={(category) => setModal({ type: 'edit', category })}
+              onDelete={(category) => setModal({ type: 'delete', category })}
             />
             <Pagination
               page={data.page}
@@ -100,11 +100,15 @@ function UsersPage() {
           </>
         ))}
 
-      {modal?.type === 'create' && <UserFormModal onClose={closeModal} />}
-      {modal?.type === 'edit' && <UserFormModal user={modal.user} onClose={closeModal} />}
-      {modal?.type === 'password' && <ResetPasswordModal user={modal.user} onClose={closeModal} />}
+      {modal?.type === 'create' && <CategoryFormModal onClose={closeModal} />}
+      {modal?.type === 'edit' && (
+        <CategoryFormModal category={modal.category} onClose={closeModal} />
+      )}
+      {modal?.type === 'delete' && (
+        <DeleteCategoryModal category={modal.category} onClose={closeModal} />
+      )}
     </section>
   )
 }
 
-export default UsersPage
+export default CategoriesPage

@@ -1,13 +1,16 @@
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
+const WIDTHS = { md: 'max-w-md', lg: 'max-w-2xl' }
+
 interface ModalProps {
   title: string
   onClose: () => void
   children: ReactNode
+  size?: keyof typeof WIDTHS
 }
 
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, children, size = 'md' }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -39,7 +42,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        className={`max-h-full w-full ${WIDTHS[size]} overflow-y-auto rounded-2xl bg-white p-6 shadow-xl`}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 id={titleId} className="text-lg font-semibold text-slate-900">

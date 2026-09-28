@@ -8,7 +8,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 |---|---|---|
 | 0 | Configuración inicial: estructura del repo, Docker Compose (PostgreSQL + backend + frontend), FastAPI base, Vite + React + Tailwind, Alembic, Ruff/ESLint, `.env.example`, CI en GitHub Actions | Terminada |
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
-| 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | En curso (2a terminada) |
+| 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Pendiente |
 | 4 | Proveedores y productos por proveedor | Pendiente |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
@@ -53,6 +53,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Historial de precios de venta (`product_price_history`) desde la creación; historial de costos llega en la Etapa 5.
 - PATCH: campos omitidos no cambian; `null` solo en campos anulables (`PartialUpdate`). Bodies con `extra="forbid"`.
 - Conflictos de unicidad se traducen por nombre de constraint (`violated_constraint`).
+- Costos visibles solo con `products.view_costs` (admin, inventario): sin el permiso la API devuelve `average_cost`/`last_cost` en `null` (`ProductResponse.for_user`).
+- Frontend: decimales como string; comparación en centavos (`bigint`); formato con `Intl` (acepta strings). Inputs numéricos aceptan `,` o `.` decimal y rechazan separadores de miles.
 
 ## Registro de etapas terminadas
 
@@ -84,3 +86,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Endpoints `/categories` (CRUD; eliminar solo sin productos) y `/products` (listar con búsqueda y filtros por categoría, tipo, estado y nivel de stock; crear; editar; historial de precios).
 - Utilidades compartidas `services/query.py` (búsqueda, paginación, errores de constraint). Colección Postman actualizada.
 - 101 tests backend.
+
+### Etapa 2b — Categorías y productos (frontend) + costos ocultos al cajero
+- Permiso `products.view_costs` (migración `9c67e8deeca8`): costos ocultos en la API sin él.
+- Páginas `/productos` (búsqueda, filtros por categoría, tipo, nivel de stock y estado; crear/editar; historial de precios) y `/categorias` (CRUD, eliminar solo sin productos).
+- `StockStatusBadge` (color + icono + texto), `formatCurrency`/`formatQuantity`, `utils/decimal.ts`, formulario de producto con Zod (servicios sin niveles de stock, costo manual).
+- Componentes compartidos `SearchInput`, `FilterSelect`, `FormActions`; `Modal` con tamaño `lg`; `StatusBadge` con tono `warning` e icono opcional.
+- 102 tests backend, 43 tests frontend.

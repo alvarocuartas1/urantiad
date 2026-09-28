@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
+import { FormActions } from '@/components/ui/FormActions'
 import { SelectField, TextField } from '@/components/ui/FormField'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/hooks/useAuth'
@@ -156,19 +156,6 @@ function EditUserForm({ user, onClose }: { user: User; onClose: () => void }) {
       )}
       <FormActions onClose={onClose} loading={mutation.isPending} />
     </form>
-  )
-}
-
-function FormActions({ onClose, loading }: { onClose: () => void; loading: boolean }) {
-  return (
-    <div className="flex justify-end gap-2 pt-2">
-      <Button variant="secondary" onClick={onClose}>
-        Cancelar
-      </Button>
-      <Button type="submit" loading={loading}>
-        Guardar
-      </Button>
-    </div>
   )
 }
 

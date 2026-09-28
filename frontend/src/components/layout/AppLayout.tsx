@@ -1,4 +1,4 @@
-import { House, KeyRound, LogOut, Users, type LucideIcon } from 'lucide-react'
+import { House, KeyRound, LogOut, Package, Tags, Users, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
@@ -15,6 +15,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Inicio', icon: House },
+  { to: '/productos', label: 'Productos', icon: Package, permission: PERMISSIONS.productsRead },
+  { to: '/categorias', label: 'Categorías', icon: Tags, permission: PERMISSIONS.productsRead },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
 ]
 
