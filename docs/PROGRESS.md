@@ -13,7 +13,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 4 | Proveedores y productos por proveedor | Terminada |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
 | 6 | Clientes | Terminada |
-| 7 | Cajas, apertura y movimientos de caja | Pendiente |
+| 7 | Cajas, apertura y movimientos de caja | En curso (7a terminada) |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
 | 9 | Arqueo y cierre de caja | Pendiente |
 | 10 | Auditoría | Pendiente |
@@ -73,6 +73,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `document_sequences` genérica (`purchase` sembrada; `sale` llegará en la Etapa 8). `supplier_service.purchasable_product`, `inventory_service.validate_quantity` y `query.filter_date_range` son compartidos.
 - Clientes: documento obligatorio y único por (tipo, número), como proveedores. "Consumidor final" (`CC 222222222222`, DIAN) sembrado por migración y marcado con `is_default` (índice único parcial); es de solo lectura (`DEFAULT_CUSTOMER_READONLY`) y encabeza el listado. Las ventas (Etapa 8) tendrán `customer_id NOT NULL` y usarán ese cliente si no se elige otro. Permisos `customers.read` y `customers.manage` (admin y cajero; inventario no).
 - Campos de contacto compartidos entre proveedores y clientes: backend `schemas/contact.py`; frontend `types/document.ts`, `utils/document.ts` y esquemas Zod en `utils/validation.ts`.
+- Caja: apertura = `cash_sessions` (`status` open/closed; los campos de cierre llegan en la Etapa 9). Índices únicos parciales `WHERE status = 'open'` por caja y por usuario; abrir bloquea la fila de la caja (serializa aperturas y desactivación). Dinero inicial en la apertura, no como movimiento. `cash_movements` inmutables (`income`/`withdrawal`; ventas añadirán tipos y `sale_id`). Un retiro no puede superar el efectivo esperado (bloqueo de la apertura). Movimientos solo en la propia apertura activa, incluso para el administrador. `cash_service.record_cash_movement` no hace commit y `get_open_session_for_user(for_update=True)` los reutilizarán las ventas. Pagos de compras no generan movimiento de caja: si salen de la caja se registra un retiro (vínculo real con cuentas por pagar, etapa futura). Permisos `cash_registers.read`, `cash.operate` (admin, cajero), `cash_registers.manage`, `cash.supervise` (admin). "Caja Principal" sembrada.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -165,3 +166,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Página `/clientes` (menú filtrado por `customers.read`), `CustomerFormModal` (React Hook Form + Zod) y `CustomersTable` (insignia "Por defecto" con candado, sin acciones).
 - Refactor sin cambio de comportamiento: campos de contacto compartidos con proveedores. Colección Postman actualizada.
 - 245 tests backend, 82 tests frontend.
+
+### Etapa 7a — Cajas y aperturas (backend)
+- Tablas `cash_registers` (nombre único sin distinguir mayúsculas), `cash_sessions` (índices únicos parciales de apertura activa por caja y por usuario) y `cash_movements` (tipo, monto > 0, concepto no vacío). Semilla "Caja Principal" y permisos `cash_registers.read|manage`, `cash.operate|supervise` (migración `85b0113cde15`).
+- Endpoints `/cash-registers` (listar con quién la tiene abierta, obtener, crear, editar/desactivar) y `/cash-sessions` (abrir, `current`, historial filtrable, detalle con resumen, movimientos, registrar ingreso/retiro). Colección Postman actualizada.
+- Tests de concurrencia: aperturas simultáneas de la misma caja (una gana, la otra recibe `CASH_REGISTER_BUSY`) y retiros simultáneos que no sobregiran (verificado fallando sin el bloqueo).
+- 280 tests backend.

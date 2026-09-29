@@ -95,6 +95,13 @@ docs/postman/      # colección "URANTIAD API"
 - Permisos `customers.read` y `customers.manage` (administrador y cajero).
 - En el frontend: página `/clientes` (búsqueda por nombre, documento o teléfono; estado; crear/editar/desactivar).
 
+### Caja
+
+- **Cajas** (`cash_registers`): nombre único sin distinguir mayúsculas, descripción y estado. No se eliminan; una caja abierta no se puede desactivar. La migración crea **"Caja Principal"**.
+- **Aperturas** (`cash_sessions`): caja, usuario, dinero inicial, observaciones y fecha. Una caja y un usuario tienen como máximo una apertura activa, garantizado por índices únicos parciales (`WHERE status = 'open'`) además de la validación del servicio. El cierre y el arqueo llegan en la Etapa 9.
+- **Movimientos** (`cash_movements`): ingresos y retiros inmutables con concepto obligatorio, solo en la propia apertura activa. **Efectivo esperado** = dinero inicial + ingresos − retiros (las ventas y anulaciones en efectivo se suman en la Etapa 8). Un retiro no puede superar el efectivo esperado: la apertura se bloquea (`SELECT ... FOR UPDATE`) al registrarlo, así dos retiros simultáneos no dejan la caja en negativo.
+- Permisos `cash_registers.read` y `cash.operate` (administrador y cajero), `cash_registers.manage` y `cash.supervise` (administrador; ver las aperturas de todos).
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos

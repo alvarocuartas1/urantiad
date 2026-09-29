@@ -55,6 +55,14 @@
     {
       "key": "customerId",
       "value": "2"
+    },
+    {
+      "key": "cashRegisterId",
+      "value": "1"
+    },
+    {
+      "key": "cashSessionId",
+      "value": "1"
     }
   ],
   "item": [
@@ -1729,6 +1737,414 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cash registers",
+      "item": [
+        {
+          "name": "Listar cajas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-registers?page=1&size=20&search=&is_active=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-registers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso cash_registers.read. Búsqueda por nombre; filtro is_active. Paginado. Cada caja incluye open_session (quién la tiene abierta y desde cuándo) o null."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener caja",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-registers/{{cashRegisterId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-registers",
+                "{{cashRegisterId}}"
+              ]
+            },
+            "description": "Permiso cash_registers.read. 404 CASH_REGISTER_NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear caja",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/cash-registers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-registers"
+              ]
+            },
+            "description": "Permiso cash_registers.manage. Nombre único sin distinguir mayúsculas (409 CASH_REGISTER_NAME_TAKEN).",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Caja Fotocopias\",\n  \"description\": \"Caja junto a la fotocopiadora.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cashRegisterId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar caja",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/cash-registers/{{cashRegisterId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-registers",
+                "{{cashRegisterId}}"
+              ]
+            },
+            "description": "Permiso cash_registers.manage. Campos omitidos no cambian. No se puede desactivar con una apertura activa (409 CASH_REGISTER_OPEN). Las cajas no se eliminan.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Caja de fotocopias e impresiones.\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cash sessions",
+      "item": [
+        {
+          "name": "Abrir caja",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions"
+              ]
+            },
+            "description": "Permiso cash.operate. Una apertura activa por caja (409 CASH_REGISTER_BUSY) y por usuario (409 USER_HAS_OPEN_SESSION). 409 CASH_REGISTER_INACTIVE; 422 CASH_REGISTER_NOT_FOUND.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cash_register_id\": 1,\n  \"opening_amount\": \"100000.00\",\n  \"opening_notes\": \"Base en billetes de 10.000.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cashSessionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mi apertura activa",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "current"
+              ]
+            },
+            "description": "Permiso cash.operate. Apertura activa del usuario con su resumen (dinero inicial, ingresos, retiros, efectivo esperado), o null."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar aperturas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions?page=1&size=20&cash_register_id=&user_id=&status=&date_from=&date_to=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "cash_register_id",
+                  "value": ""
+                },
+                {
+                  "key": "user_id",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "date_from",
+                  "value": ""
+                },
+                {
+                  "key": "date_to",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso cash.operate. Sin cash.supervise solo devuelve las propias (user_id se ignora). Filtros: caja, usuario, estado (open|closed) y fechas con zona horaria. Paginado, más recientes primero."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener apertura",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/{{cashSessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "{{cashSessionId}}"
+              ]
+            },
+            "description": "Permiso cash.operate. Una apertura ajena da 404 CASH_SESSION_NOT_FOUND sin cash.supervise."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Movimientos de la apertura",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/{{cashSessionId}}/movements?page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "{{cashSessionId}}",
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Permiso cash.operate. Paginado, más recientes primero."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar ingreso o retiro",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/{{cashSessionId}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "{{cashSessionId}}",
+                "movements"
+              ]
+            },
+            "description": "Permiso cash.operate. movement_type: income|withdrawal. Solo en la propia apertura activa (403 CASH_SESSION_NOT_OWNED, 409 CASH_SESSION_CLOSED). Un retiro no puede superar el efectivo esperado (409 INSUFFICIENT_CASH). Devuelve el movimiento y la apertura con el resumen actualizado.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movement_type\": \"withdrawal\",\n  \"amount\": \"20000.00\",\n  \"concept\": \"Pago de domicilio\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }

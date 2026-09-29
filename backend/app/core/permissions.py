@@ -29,3 +29,7 @@ class PermissionCode(StrEnum):
     PURCHASES_CANCEL = "purchases.cancel"
     CUSTOMERS_READ = "customers.read"
     CUSTOMERS_MANAGE = "customers.manage"
+    CASH_REGISTERS_READ = "cash_registers.read"
+    CASH_REGISTERS_MANAGE = "cash_registers.manage"
+    CASH_OPERATE = "cash.operate"
+    CASH_SUPERVISE = "cash.supervise"

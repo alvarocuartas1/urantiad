@@ -113,6 +113,8 @@ def test_me_returns_current_user(
     assert response.status_code == 200
     assert response.json()["username"] == "cajero"
     assert response.json()["permissions"] == [
+        "cash.operate",
+        "cash_registers.read",
         "customers.manage",
         "customers.read",
         "products.read",
