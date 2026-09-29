@@ -4,11 +4,12 @@ import type { ProductCreate, ProductListParams, ProductUpdate } from '@/types/ca
 
 const productsKey = ['products'] as const
 
-export function useProducts(params: ProductListParams) {
+export function useProducts(params: ProductListParams, { enabled = true } = {}) {
   return useQuery({
     queryKey: [...productsKey, params],
     queryFn: () => listProducts(params),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

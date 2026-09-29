@@ -9,7 +9,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 0 | Configuración inicial: estructura del repo, Docker Compose (PostgreSQL + backend + frontend), FastAPI base, Vite + React + Tailwind, Alembic, Ruff/ESLint, `.env.example`, CI en GitHub Actions | Terminada |
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
-| 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | En curso (3a terminada) |
+| 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
 | 4 | Proveedores y productos por proveedor | Pendiente |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
 | 6 | Clientes | Pendiente |
@@ -61,6 +61,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Stock negativo configurable con `ALLOW_NEGATIVE_STOCK` (entorno). Cantidades enteras para unidades contables (`COUNTABLE_UNITS`: unit, pack, box, page).
 - Permisos `inventory.read` e `inventory.adjust` (admin, inventario). El cajero no consulta movimientos.
 - Pruebas de concurrencia con dos sesiones reales y datos confirmados (se purgan al inicio y al final).
+- Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
 
@@ -106,3 +107,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Costo promedio ponderado, validación de stock negativo y de cantidades enteras. Costos ocultos sin `products.view_costs`.
 - Tests de concurrencia (dos sesiones y hilos reales): salidas simultáneas no sobrevenden; entradas simultáneas se encadenan. Verificados fallando sin el bloqueo.
 - 132 tests backend.
+
+### Etapa 3b — Inventario (frontend)
+- Páginas `/inventario/movimientos` (historial con filtros por tipo y fechas, nuevo ajuste) y `/inventario/reposicion` ("Productos que requieren reposición" con cantidad sugerida y acción de ajustar). Menú filtrado por `inventory.read`.
+- `AdjustmentFormModal` (React Hook Form + Zod): selector de producto por nombre, SKU o código de barras, entrada/salida, cantidad (entera en unidades contables), costo opcional en entradas, motivo con sugerencias y vista previa del stock resultante (aviso si queda negativo). Errores de stock junto al campo.
+- `MovementTypeBadge` (color + icono + texto), `MovementsTable`, `ReplenishmentTable`, `ProductMovementsModal`; acciones "Movimientos" y "Ajustar" en la tabla de productos. `DateFilter` compartido.
+- `utils/decimal.ts` admite valores negativos (`toCents`) y `fromCents`; `decimalSchema` se comparte desde `utils/validation.ts`.
+- 132 tests backend, 53 tests frontend.

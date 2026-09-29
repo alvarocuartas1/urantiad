@@ -1,5 +1,7 @@
 import { LoaderCircle, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { AdjustmentFormModal } from '@/components/inventory/AdjustmentFormModal'
+import { ProductMovementsModal } from '@/components/inventory/ProductMovementsModal'
 import { PriceHistoryModal } from '@/components/products/PriceHistoryModal'
 import { ProductFormModal } from '@/components/products/ProductFormModal'
 import { ProductsTable } from '@/components/products/ProductsTable'
@@ -19,7 +21,8 @@ import { ACTIVE_FILTER_VALUES, type ActiveFilter } from '@/utils/filters'
 
 const PAGE_SIZE = 20
 
-type ModalState = { type: 'create' } | { type: 'edit' | 'prices'; product: Product } | null
+type ModalState =
+  { type: 'create' } | { type: 'edit' | 'prices' | 'adjust' | 'movements'; product: Product } | null
 
 interface Filters {
   categoryId: string
@@ -39,6 +42,8 @@ function ProductsPage() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission(PERMISSIONS.productsManage)
   const showCosts = hasPermission(PERMISSIONS.productsViewCosts)
+  const canAdjust = hasPermission(PERMISSIONS.inventoryAdjust)
+  const canReadInventory = hasPermission(PERMISSIONS.inventoryRead)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
@@ -149,6 +154,10 @@ function ProductsPage() {
               showCosts={showCosts}
               onEdit={(product) => setModal({ type: 'edit', product })}
               onPriceHistory={(product) => setModal({ type: 'prices', product })}
+              onAdjust={canAdjust ? (product) => setModal({ type: 'adjust', product }) : undefined}
+              onMovements={
+                canReadInventory ? (product) => setModal({ type: 'movements', product }) : undefined
+              }
             />
             <Pagination
               page={data.page}
@@ -163,6 +172,12 @@ function ProductsPage() {
       {modal?.type === 'edit' && <ProductFormModal product={modal.product} onClose={closeModal} />}
       {modal?.type === 'prices' && (
         <PriceHistoryModal product={modal.product} onClose={closeModal} />
+      )}
+      {modal?.type === 'adjust' && (
+        <AdjustmentFormModal product={modal.product} onClose={closeModal} />
+      )}
+      {modal?.type === 'movements' && (
+        <ProductMovementsModal product={modal.product} onClose={closeModal} />
       )}
     </section>
   )

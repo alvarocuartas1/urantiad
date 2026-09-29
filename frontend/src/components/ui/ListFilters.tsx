@@ -49,3 +49,24 @@ export function FilterSelect({ label, value, onChange, children }: FilterSelectP
     </label>
   )
 }
+
+interface DateFilterProps {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}
+
+/** Date picker for list filters; the value is a "YYYY-MM-DD" string ('' when empty). */
+export function DateFilter({ label, value, onChange }: DateFilterProps) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-slate-700">
+      {label}
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      />
+    </label>
+  )
+}

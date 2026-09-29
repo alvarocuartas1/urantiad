@@ -20,9 +20,20 @@ export function trimDecimal(value: string): string {
   return value.includes('.') ? value.replace(/\.?0+$/, '') : value
 }
 
+/** Exact value in cents; accepts API values, which may be negative (e.g. "-2.50" stock). */
 export function toCents(value: string): bigint {
-  const [integer = '0', fraction = ''] = normalizeDecimal(value).split('.')
-  return BigInt(integer) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2))
+  const normalized = normalizeDecimal(value)
+  const negative = normalized.startsWith('-')
+  const [integer = '0', fraction = ''] = normalized.replace(/^[-+]/, '').split('.')
+  const cents = BigInt(integer || '0') * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2))
+  return negative ? -cents : cents
+}
+
+/** Decimal string in the API format: 1050n → "10.50", -5n → "-0.05". */
+export function fromCents(cents: bigint): string {
+  const sign = cents < 0n ? '-' : ''
+  const absolute = cents < 0n ? -cents : cents
+  return `${sign}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, '0')}`
 }
 
 /** Negative when a < b, zero when equal, positive when a > b. */

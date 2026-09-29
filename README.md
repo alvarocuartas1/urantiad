@@ -67,6 +67,7 @@ docs/postman/      # colección "URANTIAD API"
 - **Stock negativo** no permitido por defecto (`ALLOW_NEGATIVE_STOCK`). Las unidades contables (unidad, paquete, caja, página) solo aceptan cantidades enteras.
 - Cada movimiento bloquea la fila del producto (`SELECT … FOR UPDATE`): dos operaciones simultáneas sobre el mismo producto se aplican en serie y nunca venden stock inexistente.
 - **Reposición:** productos activos con stock ≤ punto de reorden, los más urgentes primero, con cantidad sugerida = stock objetivo − stock actual.
+- En el frontend: páginas de movimientos y de reposición, y un modal de ajuste con selector de producto compatible con lector de código de barras (Enter selecciona la coincidencia exacta) y vista previa del stock resultante.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

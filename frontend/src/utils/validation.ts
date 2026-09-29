@@ -1,4 +1,14 @@
 import { z } from 'zod'
+import { isDecimalInput, normalizeDecimal } from './decimal'
+
+export const DECIMAL_MESSAGE = 'Ingrese un número sin puntos de miles (máximo 2 decimales).'
+
+/** Money or quantity typed by the user ("2500,5"), sent to the API as "2500.5". */
+export const decimalSchema = z
+  .string()
+  .trim()
+  .refine(isDecimalInput, DECIMAL_MESSAGE)
+  .transform(normalizeDecimal)
 
 /** Mirrors the backend rules in `app/schemas/user.py`. */
 export const newPasswordSchema = z

@@ -2,14 +2,7 @@ import { z } from 'zod'
 import type { Product, ProductCreate, ProductUpdate, UnitOfMeasure } from '@/types/catalog'
 import { UNIT_LABELS, labelEntries } from './catalog'
 import { compareDecimals, isDecimalInput, normalizeDecimal, trimDecimal } from './decimal'
-
-const DECIMAL_MESSAGE = 'Ingrese un número sin puntos de miles (máximo 2 decimales).'
-
-const decimalSchema = z
-  .string()
-  .trim()
-  .refine(isDecimalInput, DECIMAL_MESSAGE)
-  .transform(normalizeDecimal)
+import { DECIMAL_MESSAGE, decimalSchema } from './validation'
 
 const units = labelEntries(UNIT_LABELS).map(([unit]) => unit) as [UnitOfMeasure, ...UnitOfMeasure[]]
 

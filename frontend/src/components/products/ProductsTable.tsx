@@ -1,4 +1,4 @@
-import { History, Pencil } from 'lucide-react'
+import { ArrowLeftRight, History, Pencil, SlidersHorizontal } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { Product } from '@/types/catalog'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
@@ -11,6 +11,9 @@ interface ProductsTableProps {
   showCosts: boolean
   onEdit: (product: Product) => void
   onPriceHistory: (product: Product) => void
+  /** Inventory actions; omitted when the user lacks the permission. Products only. */
+  onAdjust?: (product: Product) => void
+  onMovements?: (product: Product) => void
 }
 
 const HEADER_CLASS = 'px-4 py-3 font-semibold'
@@ -23,10 +26,12 @@ export function ProductsTable({
   showCosts,
   onEdit,
   onPriceHistory,
+  onAdjust,
+  onMovements,
 }: ProductsTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[880px] text-left text-sm">
+      <table className="w-full min-w-[980px] text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600 uppercase">
           <tr>
             <th scope="col" className={HEADER_CLASS}>
@@ -92,7 +97,7 @@ export function ProductsTable({
                 />
               </td>
               <td className="px-4 py-3">
-                <div className="flex justify-end gap-1">
+                <div className="flex flex-wrap justify-end gap-1">
                   {canManage && (
                     <button type="button" onClick={() => onEdit(product)} className={ACTION_CLASS}>
                       <Pencil aria-hidden="true" className="size-4" />
@@ -107,6 +112,26 @@ export function ProductsTable({
                     <History aria-hidden="true" className="size-4" />
                     Precios
                   </button>
+                  {product.type === 'product' && onMovements && (
+                    <button
+                      type="button"
+                      onClick={() => onMovements(product)}
+                      className={ACTION_CLASS}
+                    >
+                      <ArrowLeftRight aria-hidden="true" className="size-4" />
+                      Movimientos
+                    </button>
+                  )}
+                  {product.type === 'product' && onAdjust && (
+                    <button
+                      type="button"
+                      onClick={() => onAdjust(product)}
+                      className={ACTION_CLASS}
+                    >
+                      <SlidersHorizontal aria-hidden="true" className="size-4" />
+                      Ajustar
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

@@ -1,4 +1,11 @@
-import { compareDecimals, isDecimalInput, normalizeDecimal, toCents, trimDecimal } from './decimal'
+import {
+  compareDecimals,
+  fromCents,
+  isDecimalInput,
+  normalizeDecimal,
+  toCents,
+  trimDecimal,
+} from './decimal'
 
 describe('decimal helpers', () => {
   it.each(['0', '2500', '2500.5', '2500,50', ' 19 '])('accepts %j', (value) => {
@@ -25,5 +32,13 @@ describe('decimal helpers', () => {
     expect(compareDecimals('0.1', '0.10')).toBe(0)
     expect(compareDecimals('9.99', '10')).toBe(-1)
     expect(compareDecimals('20', '19,99')).toBe(1)
+  })
+
+  it('handles negative API values and converts back from cents', () => {
+    expect(toCents('-2.50')).toBe(-250n)
+    expect(toCents('-0.05')).toBe(-5n)
+    expect(fromCents(1050n)).toBe('10.50')
+    expect(fromCents(-5n)).toBe('-0.05')
+    expect(fromCents(toCents('10') - toCents('12.5'))).toBe('-2.50')
   })
 })
