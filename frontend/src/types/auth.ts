@@ -10,6 +10,9 @@ export const PERMISSIONS = {
   inventoryAdjust: 'inventory.adjust',
   suppliersRead: 'suppliers.read',
   suppliersManage: 'suppliers.manage',
+  purchasesRead: 'purchases.read',
+  purchasesManage: 'purchases.manage',
+  purchasesCancel: 'purchases.cancel',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

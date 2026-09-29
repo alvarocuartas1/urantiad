@@ -86,6 +86,7 @@ docs/postman/      # colección "URANTIAD API"
 - Una factura de proveedor no se registra dos veces (índice único parcial que ignora compras anuladas).
 - **Historial de costos** (`GET /products/{id}/cost-history`, `products.view_costs`): costo neto por compra, variación frente a la anterior y margen bruto sobre el precio sin IVA. Se consulta sobre las líneas de compras confirmadas, sin tabla duplicada.
 - Permisos `purchases.read` y `purchases.manage` (administrador e inventario) y `purchases.cancel` (administrador).
+- En el frontend: `/compras` (búsqueda, estado, proveedor y fechas) y el editor `/compras/nueva` · `/compras/:id`. El lector de código de barras agrega la línea con el precio del proveedor (o el último costo) y enfoca su cantidad; Enter vuelve al lector. Totales en vivo con el mismo redondeo del backend; "Guardar y confirmar" muestra un resumen de lo que entra al inventario. Las compras confirmadas se ven en solo lectura, con la acción de anular para el administrador. Acción "Costos" en productos y número de compra enlazado en el historial de movimientos.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

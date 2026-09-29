@@ -2,6 +2,7 @@ import { LoaderCircle, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { AdjustmentFormModal } from '@/components/inventory/AdjustmentFormModal'
 import { ProductMovementsModal } from '@/components/inventory/ProductMovementsModal'
+import { CostHistoryModal } from '@/components/products/CostHistoryModal'
 import { PriceHistoryModal } from '@/components/products/PriceHistoryModal'
 import { ProductFormModal } from '@/components/products/ProductFormModal'
 import { ProductsTable } from '@/components/products/ProductsTable'
@@ -24,7 +25,10 @@ const PAGE_SIZE = 20
 
 type ModalState =
   | { type: 'create' }
-  | { type: 'edit' | 'prices' | 'adjust' | 'movements' | 'suppliers'; product: Product }
+  | {
+      type: 'edit' | 'prices' | 'costs' | 'adjust' | 'movements' | 'suppliers'
+      product: Product
+    }
   | null
 
 interface Filters {
@@ -158,6 +162,9 @@ function ProductsPage() {
               showCosts={showCosts}
               onEdit={(product) => setModal({ type: 'edit', product })}
               onPriceHistory={(product) => setModal({ type: 'prices', product })}
+              onCostHistory={
+                showCosts ? (product) => setModal({ type: 'costs', product }) : undefined
+              }
               onAdjust={canAdjust ? (product) => setModal({ type: 'adjust', product }) : undefined}
               onMovements={
                 canReadInventory ? (product) => setModal({ type: 'movements', product }) : undefined
@@ -180,6 +187,7 @@ function ProductsPage() {
       {modal?.type === 'prices' && (
         <PriceHistoryModal product={modal.product} onClose={closeModal} />
       )}
+      {modal?.type === 'costs' && <CostHistoryModal product={modal.product} onClose={closeModal} />}
       {modal?.type === 'adjust' && (
         <AdjustmentFormModal product={modal.product} onClose={closeModal} />
       )}

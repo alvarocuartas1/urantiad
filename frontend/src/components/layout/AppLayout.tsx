@@ -5,6 +5,7 @@ import {
   KeyRound,
   LogOut,
   Package,
+  ShoppingCart,
   Tags,
   Truck,
   Users,
@@ -45,6 +46,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Proveedores',
     icon: Truck,
     permission: PERMISSIONS.suppliersRead,
+  },
+  {
+    to: '/compras',
+    label: 'Compras',
+    icon: ShoppingCart,
+    permission: PERMISSIONS.purchasesRead,
   },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
 ]

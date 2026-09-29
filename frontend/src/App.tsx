@@ -8,6 +8,8 @@ import HomePage from '@/pages/HomePage'
 import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
 import ProductsPage from '@/pages/ProductsPage'
+import PurchasePage from '@/pages/PurchasePage'
+import PurchasesPage from '@/pages/PurchasesPage'
 import ReplenishmentPage from '@/pages/ReplenishmentPage'
 import SuppliersPage from '@/pages/SuppliersPage'
 import UsersPage from '@/pages/UsersPage'
@@ -35,6 +37,13 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.suppliersRead} />}>
                 <Route path="proveedores" element={<SuppliersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.purchasesRead} />}>
+                <Route path="compras" element={<PurchasesPage />} />
+                <Route path="compras/:purchaseId" element={<PurchasePage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.purchasesManage} />}>
+                <Route path="compras/nueva" element={<PurchasePage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

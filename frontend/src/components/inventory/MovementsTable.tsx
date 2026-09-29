@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { Link } from 'react-router'
 import type { InventoryMovement } from '@/types/inventory'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
 import { formatCurrency, formatDateTime, formatQuantity } from '@/utils/format'
@@ -44,7 +45,7 @@ export function MovementsTable({ movements, showProduct = true, showCosts }: Mov
               </th>
             )}
             <th scope="col" className={HEADER_CLASS}>
-              Motivo
+              Documento / motivo
             </th>
             <th scope="col" className={HEADER_CLASS}>
               Usuario
@@ -91,7 +92,17 @@ export function MovementsTable({ movements, showProduct = true, showCosts }: Mov
                     {formatCurrency(movement.unit_cost)}
                   </td>
                 )}
-                <td className={`${CELL_CLASS} text-slate-700`}>{movement.reason ?? '—'}</td>
+                <td className={`${CELL_CLASS} text-slate-700`}>
+                  {movement.purchase && (
+                    <Link
+                      to={`/compras/${movement.purchase.id}`}
+                      className="block font-medium text-slate-900 underline-offset-2 hover:underline"
+                    >
+                      {movement.purchase.number}
+                    </Link>
+                  )}
+                  {movement.reason ?? (movement.purchase ? null : '—')}
+                </td>
                 <td className={`${CELL_CLASS} text-slate-700`}>{movement.user.full_name}</td>
               </tr>
             )

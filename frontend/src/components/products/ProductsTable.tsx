@@ -1,4 +1,4 @@
-import { ArrowLeftRight, History, Pencil, SlidersHorizontal, Truck } from 'lucide-react'
+import { ArrowLeftRight, ChartLine, History, Pencil, SlidersHorizontal, Truck } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { Product } from '@/types/catalog'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
@@ -16,6 +16,8 @@ interface ProductsTableProps {
   onMovements?: (product: Product) => void
   /** Omitted when the user lacks `suppliers.read`. Products only. */
   onSuppliers?: (product: Product) => void
+  /** Purchase cost history; omitted without `products.view_costs`. Products only. */
+  onCostHistory?: (product: Product) => void
 }
 
 const HEADER_CLASS = 'px-4 py-3 font-semibold'
@@ -31,6 +33,7 @@ export function ProductsTable({
   onAdjust,
   onMovements,
   onSuppliers,
+  onCostHistory,
 }: ProductsTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -115,6 +118,16 @@ export function ProductsTable({
                     <History aria-hidden="true" className="size-4" />
                     Precios
                   </button>
+                  {product.type === 'product' && onCostHistory && (
+                    <button
+                      type="button"
+                      onClick={() => onCostHistory(product)}
+                      className={ACTION_CLASS}
+                    >
+                      <ChartLine aria-hidden="true" className="size-4" />
+                      Costos
+                    </button>
+                  )}
                   {product.type === 'product' && onMovements && (
                     <button
                       type="button"

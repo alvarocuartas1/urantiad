@@ -1,5 +1,5 @@
 import { LoaderCircle, ScanBarcode } from 'lucide-react'
-import { useId, useState, type KeyboardEvent } from 'react'
+import { useId, useState, type KeyboardEvent, type Ref } from 'react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useProducts } from '@/hooks/useProducts'
 import { listProducts } from '@/services/products'
@@ -14,6 +14,8 @@ interface ProductPickerProps {
   onSelect: (product: Product) => void
   /** Focus the search when shown after the modal opened (the modal focuses only on mount). */
   autoFocus?: boolean
+  /** Lets a caller return the focus to the search (e.g. to scan the next product). */
+  inputRef?: Ref<HTMLInputElement>
 }
 
 /** Exact SKU or barcode match, or the only result: what a barcode scan should pick. */
@@ -27,7 +29,7 @@ function pickScanned(products: Product[], term: string): Product | undefined {
  * Physical product search by name, SKU or barcode. Pressing Enter (as barcode scanners do)
  * searches immediately and selects the exact match, without waiting for the debounce.
  */
-export function ProductPicker({ onSelect, autoFocus = false }: ProductPickerProps) {
+export function ProductPicker({ onSelect, autoFocus = false, inputRef }: ProductPickerProps) {
   const inputId = useId()
   const [term, setTerm] = useState('')
   const [scanMessage, setScanMessage] = useState<string | null>(null)
@@ -77,6 +79,7 @@ export function ProductPicker({ onSelect, autoFocus = false }: ProductPickerProp
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
         />
         <input
+          ref={inputRef}
           id={inputId}
           type="search"
           value={term}

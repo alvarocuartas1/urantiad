@@ -11,7 +11,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
 | 4 | Proveedores y productos por proveedor | Terminada |
-| 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | En curso (5a terminada) |
+| 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
 | 6 | Clientes | Pendiente |
 | 7 | Cajas, apertura y movimientos de caja | Pendiente |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
@@ -69,6 +69,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Confirmar y anular bloquean la compra y los productos en orden de id (evita deadlocks); la secuencia se toma al final. Timestamps de confirmación y anulación con la hora de la BD (`now()`), como `created_at`.
 - Anulación de compra: tipo `purchase_cancellation` (distinto de `purchase_return`, reservado a devoluciones parciales). Salida al costo neto de la compra con promedio inverso `(S·P − q·c)/(S − q)`; si no queda stock o el valor sería negativo, se conserva el promedio. Último costo = el de la compra confirmada más reciente (si no hay, no cambia). El precio del proveedor no se revierte. Solo el administrador (`purchases.cancel`).
 - Historial de costos sin tabla propia: consulta sobre `purchase_items` de compras confirmadas. Margen bruto = precio sin IVA − costo promedio.
+- Frontend de compras: el editor calcula totales en centavos con el mismo redondeo HALF_UP del backend (solo vista previa; el backend es la fuente de verdad). Escanear un producto ya presente enfoca su línea en vez de duplicarla. "Guardar y confirmar" guarda el borrador y abre el resumen; una compra nueva pasa a `/compras/:id` al salir del resumen. Selector de proveedores limitado a 100 activos (suficiente para el negocio; revisar si crece).
 - `document_sequences` genérica (`purchase` sembrada; `sale` llegará en la Etapa 8). `supplier_service.purchasable_product`, `inventory_service.validate_quantity` y `query.filter_date_range` son compartidos.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
@@ -142,3 +143,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Frontend mínimo: etiqueta del nuevo tipo de movimiento. Colección Postman actualizada.
 - Tests de concurrencia: confirmaciones simultáneas obtienen consecutivos distintos y seguidos; la misma compra confirmada a la vez se aplica una sola vez (ambos verificados fallando sin el bloqueo).
 - 208 tests backend.
+
+### Etapa 5b — Compras (frontend)
+- Páginas `/compras` (listado con búsqueda, estado, proveedor y fechas) y `/compras/nueva` · `/compras/:id` (editor de borrador o detalle de solo lectura). Menú filtrado por `purchases.read`; crear requiere `purchases.manage`.
+- `PurchaseForm` (React Hook Form + Zod + `useFieldArray`) con `PurchaseLinesEditor`, `PurchaseTotals`, `ConfirmPurchaseModal`, `DiscardPurchaseModal`; `PurchaseDetail` con `CancelPurchaseModal` (solo `purchases.cancel`); `PurchaseStatusBadge` (color + icono + texto).
+- `CostHistoryModal` (acción "Costos" en productos, con `products.view_costs`): costo promedio, último costo, margen bruto y variación por compra.
+- `MovementsTable` enlaza la compra de origen. `ProductPicker` admite `inputRef`; `isCountableUnit` compartido en `utils/inventory.ts`.
+- 208 tests backend, 76 tests frontend.

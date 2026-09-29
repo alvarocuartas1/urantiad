@@ -25,6 +25,8 @@ export interface InventoryMovement {
   unit_cost: string | null
   average_cost_after: string | null
   reason: string | null
+  /** Purchase that originated the movement (entries and cancellations of purchases). */
+  purchase: { id: number; number: string } | null
   user: { id: number; full_name: string }
   created_at: string
 }

@@ -30,6 +30,10 @@ export function isInbound(type: MovementType): boolean {
 /** Units sold whole (mirrors `COUNTABLE_UNITS` in the backend). */
 const COUNTABLE_UNITS: ReadonlySet<UnitOfMeasure> = new Set(['unit', 'pack', 'box', 'page'])
 
+export function isCountableUnit(unit: UnitOfMeasure): boolean {
+  return COUNTABLE_UNITS.has(unit)
+}
+
 /** Frequent reasons offered as suggestions; any other text is accepted. */
 export const ADJUSTMENT_REASONS = [
   'Carga inicial de inventario',
@@ -46,7 +50,7 @@ export function buildAdjustmentSchema(unit: UnitOfMeasure) {
     quantity: decimalSchema
       .refine((value) => toCents(value) > 0n, 'La cantidad debe ser mayor que 0.')
       .refine(
-        (value) => !COUNTABLE_UNITS.has(unit) || toCents(value) % 100n === 0n,
+        (value) => !isCountableUnit(unit) || toCents(value) % 100n === 0n,
         'Ingrese una cantidad entera para esta unidad de medida.',
       ),
     unit_cost: z
