@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.models import (
+    InventoryMovement,
     MovementType,
     Product,
     Purchase,
@@ -305,9 +306,36 @@ def _latest_purchase_cost(
     return item.net_unit_cost if item is not None else None
 
 
+def _costs_to_restore(
+    db: Session, purchase: Purchase, product_id: int
+) -> tuple[Decimal, Decimal] | None:
+    """Costs the product had before this purchase entered, when they can be put back exactly:
+    the entry is still the product's latest movement and recorded them. `None` otherwise."""
+    entry = db.scalar(
+        select(InventoryMovement).where(
+            InventoryMovement.purchase_id == purchase.id,
+            InventoryMovement.product_id == product_id,
+            InventoryMovement.movement_type == MovementType.PURCHASE_ENTRY,
+        )
+    )
+    if entry is None or entry.average_cost_before is None or entry.last_cost_before is None:
+        return None
+    # The product row is locked, so no movement can be added while this runs.
+    later = select(InventoryMovement.id).where(
+        InventoryMovement.product_id == product_id, InventoryMovement.id > entry.id
+    )
+    if db.scalar(select(later.exists())):
+        return None
+    return entry.average_cost_before, entry.last_cost_before
+
+
 def cancel_purchase(db: Session, actor: User, purchase_id: int, data: PurchaseCancel) -> Purchase:
-    """Reverse a confirmed purchase: its units leave at the cost they entered, so the average
-    cost drops that purchase, and the last cost returns to the latest confirmed purchase.
+    """Reverse a confirmed purchase: its units leave at the cost they entered.
+
+    When the purchase is still the product's latest movement, the average and last cost
+    return exactly to their values before it. Otherwise the purchase is removed from the
+    average with the inverse formula and the last cost returns to the latest other confirmed
+    purchase (if any).
 
     Fails without changes if the units are no longer in stock (unless negative stock is
     allowed). The supplier's prices are catalog data and are not reverted.
@@ -321,6 +349,7 @@ def cancel_purchase(db: Session, actor: User, purchase_id: int, data: PurchaseCa
             )
         for index, item in enumerate(_sorted_items(purchase)):
             product = get_product(db, item.product_id, for_update=True)
+            restore_costs = _costs_to_restore(db, purchase, product.id)
             try:
                 inventory_service.record_movement(
                     db,
@@ -331,12 +360,14 @@ def cancel_purchase(db: Session, actor: User, purchase_id: int, data: PurchaseCa
                     unit_cost=item.net_unit_cost,
                     reason=data.reason,
                     purchase=purchase,
+                    restore_costs=restore_costs,
                 )
             except AppError as exc:
                 raise _line_error(index, exc) from exc
-            previous_cost = _latest_purchase_cost(db, product.id, purchase.id)
-            if previous_cost is not None:
-                product.last_cost = previous_cost
+            if restore_costs is None:
+                previous_cost = _latest_purchase_cost(db, product.id, purchase.id)
+                if previous_cost is not None:
+                    product.last_cost = previous_cost
         purchase.status = PurchaseStatus.CANCELLED
         purchase.cancelled_by = actor
         purchase.cancelled_at = func.now()

@@ -636,6 +636,59 @@ def test_cancel_reverses_stock_and_costs(
     assert reversal.purchase_id == mistaken
 
 
+def test_cancelling_the_latest_entry_restores_costs_exactly(
+    client: TestClient,
+    db_session: Session,
+    supplier: Supplier,
+    product: Product,
+    headers: dict[str, str],
+    admin_headers: dict[str, str],
+) -> None:
+    """The average is stored rounded: (10 x 1000 + 24 x 1800) / 34 = 1564.705... -> 1564.71,
+    so the inverse formula would give 1000.01. Restoring the recorded costs gives 1000."""
+    purchase_id = buy(client, headers, supplier, line(product, quantity="24", unit_cost="1800"))[
+        "id"
+    ]
+    db_session.refresh(product)
+    assert product.average_cost == Decimal("1564.71")
+    entry = movements(db_session, product)[-1]
+    assert (entry.average_cost_before, entry.last_cost_before) == (Decimal(1000), Decimal(1000))
+
+    cancel(client, admin_headers, purchase_id)
+
+    db_session.refresh(product)
+    assert product.current_stock == Decimal(10)
+    assert product.average_cost == Decimal(1000)
+    # No other confirmed purchase: the last cost still returns to its value before the entry.
+    assert product.last_cost == Decimal(1000)
+    assert movements(db_session, product)[-1].average_cost_after == Decimal(1000)
+
+
+def test_cancelling_after_later_movements_uses_the_inverse_formula(
+    client: TestClient,
+    db_session: Session,
+    supplier: Supplier,
+    product: Product,
+    headers: dict[str, str],
+    admin_headers: dict[str, str],
+) -> None:
+    purchase_id = buy(client, headers, supplier, line(product))["id"]  # 10 at 1500 -> avg 1250
+    client.post(
+        "/api/v1/inventory/adjustments",
+        json={"product_id": product.id, "direction": "out", "quantity": "1", "reason": "Merma"},
+        headers=headers,
+    )
+
+    cancel(client, admin_headers, purchase_id)
+
+    db_session.refresh(product)
+    # (19 x 1250 - 10 x 1500) / 9 = 972.22: the costs before the entry no longer apply.
+    assert product.current_stock == Decimal(9)
+    assert product.average_cost == Decimal("972.22")
+    # Without another confirmed purchase the last cost is left as it was.
+    assert product.last_cost == Decimal(1500)
+
+
 def test_cancel_fails_without_changes_when_units_were_sold(
     client: TestClient,
     db_session: Session,

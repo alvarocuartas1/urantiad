@@ -92,6 +92,7 @@ def record_movement(
     unit_cost: Decimal | None = None,
     reason: str | None = None,
     purchase: Purchase | None = None,
+    restore_costs: tuple[Decimal, Decimal] | None = None,
 ) -> InventoryMovement:
     """Apply a stock movement to `product` and record it, without committing.
 
@@ -99,10 +100,13 @@ def record_movement(
     movements cannot read the same stock. Entries with `unit_cost` recalculate the weighted
     average and the last cost; entries without it use the current average. Exits use the
     current average, except reversals of an entry (`unit_cost` given), which leave at that
-    cost and remove it from the average.
+    cost: `restore_costs` (average, last cost) puts back the costs the entry replaced, and
+    without it the entry is removed from the average with the inverse formula.
     """
     validate_quantity(product, quantity)
     stock_before = product.current_stock
+    average_cost_before = product.average_cost
+    last_cost_before = product.last_cost
 
     if movement_type.is_inbound:
         stock_after = stock_before + quantity
@@ -120,7 +124,9 @@ def record_movement(
                 f"solicitado {quantity.normalize():f}.",
                 code="INSUFFICIENT_STOCK",
             )
-        if unit_cost is not None:
+        if restore_costs is not None:
+            product.average_cost, product.last_cost = restore_costs
+        elif unit_cost is not None:
             product.average_cost = reversed_average_cost(
                 stock_before, product.average_cost, quantity, unit_cost
             )
@@ -135,6 +141,8 @@ def record_movement(
         stock_after=stock_after,
         unit_cost=movement_cost,
         average_cost_after=product.average_cost,
+        average_cost_before=average_cost_before,
+        last_cost_before=last_cost_before,
         reason=reason,
         purchase=purchase,
         user=user,

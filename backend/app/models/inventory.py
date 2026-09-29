@@ -59,6 +59,9 @@ class InventoryMovement(Base):
         CheckConstraint("unit_cost >= 0", name="unit_cost_non_negative"),
         CheckConstraint("average_cost_after >= 0", name="average_cost_after_non_negative"),
         CheckConstraint(
+            "average_cost_before >= 0 AND last_cost_before >= 0", name="costs_before_non_negative"
+        ),
+        CheckConstraint(
             f"({_type_in(INBOUND_MOVEMENT_TYPES)} AND stock_after = stock_before + quantity) "
             f"OR (NOT {_type_in(INBOUND_MOVEMENT_TYPES)} "
             "AND stock_after = stock_before - quantity)",
@@ -84,6 +87,11 @@ class InventoryMovement(Base):
     # Cost per unit moved: the entry cost, or the average cost for outgoing movements.
     unit_cost: Mapped[Decimal]
     average_cost_after: Mapped[Decimal]
+    # Product costs just before the movement, so reversing the latest entry restores them
+    # exactly (the average is stored rounded, so the inverse formula can drift by cents).
+    # NULL in movements recorded before these columns existed.
+    average_cost_before: Mapped[Decimal | None]
+    last_cost_before: Mapped[Decimal | None]
     reason: Mapped[str | None] = mapped_column(String(255))
     purchase_id: Mapped[int | None] = mapped_column(
         ForeignKey("purchases.id", ondelete="RESTRICT"), index=True
