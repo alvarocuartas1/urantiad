@@ -37,7 +37,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Constraints con nombres deterministas (`naming_convention` en `Base.metadata`).
 - Errores: `AppError(detail, code, status_code)` en servicios; handlers globales devuelven `{detail, code}` (404/405/422/500 incluidos).
 - Tests backend: base `urantiad_test`, migraciones Alembic una vez por sesión, cada test en transacción revertida (`join_transaction_mode="create_savepoint"`).
-- Vitest con `pool: 'threads'` (el pool `forks` es lento en Windows). En la primera ejecución en frío puede aparecer `Timeout waiting for worker to respond` (límite fijo de 60 s de Vitest): repetir la ejecución; no es un test fallido.
+- Vitest con `pool: 'threads'` (el pool `forks` es lento en Windows) y `maxWorkers: 2`: arrancar muchos workers jsdom a la vez superaba el límite fijo de 60 s de Vitest (`Timeout waiting for worker to respond`).
 - React Hook Form + Zod se instalan en la Etapa 1b (primer formulario).
 - Sesión: access token JWT de 15 min + refresh token rotativo de 12 h en cookie `httpOnly` (hash SHA-256 en `refresh_tokens`); reutilizar un token rotado revoca todas las sesiones.
 - Contraseñas con Argon2 (`pwdlib`). Bloqueo de 15 min tras 5 intentos fallidos.

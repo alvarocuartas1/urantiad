@@ -17,6 +17,9 @@ export default defineConfig({
     environment: 'jsdom',
     // Worker threads start much faster than child processes (forks) on Windows.
     pool: 'threads',
+    // Starting many jsdom workers at once can exceed Vitest's fixed 60 s start-up timeout
+    // on a busy machine; two at a time is also faster overall.
+    maxWorkers: 2,
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
