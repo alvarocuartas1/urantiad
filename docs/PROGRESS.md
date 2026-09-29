@@ -13,7 +13,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 4 | Proveedores y productos por proveedor | Terminada |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
 | 6 | Clientes | Terminada |
-| 7 | Cajas, apertura y movimientos de caja | En curso (7a terminada) |
+| 7 | Cajas, apertura y movimientos de caja | Terminada |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
 | 9 | Arqueo y cierre de caja | Pendiente |
 | 10 | Auditoría | Pendiente |
@@ -74,6 +74,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Clientes: documento obligatorio y único por (tipo, número), como proveedores. "Consumidor final" (`CC 222222222222`, DIAN) sembrado por migración y marcado con `is_default` (índice único parcial); es de solo lectura (`DEFAULT_CUSTOMER_READONLY`) y encabeza el listado. Las ventas (Etapa 8) tendrán `customer_id NOT NULL` y usarán ese cliente si no se elige otro. Permisos `customers.read` y `customers.manage` (admin y cajero; inventario no).
 - Campos de contacto compartidos entre proveedores y clientes: backend `schemas/contact.py`; frontend `types/document.ts`, `utils/document.ts` y esquemas Zod en `utils/validation.ts`.
 - Caja: apertura = `cash_sessions` (`status` open/closed; los campos de cierre llegan en la Etapa 9). Índices únicos parciales `WHERE status = 'open'` por caja y por usuario; abrir bloquea la fila de la caja (serializa aperturas y desactivación). Dinero inicial en la apertura, no como movimiento. `cash_movements` inmutables (`income`/`withdrawal`; ventas añadirán tipos y `sale_id`). Un retiro no puede superar el efectivo esperado (bloqueo de la apertura). Movimientos solo en la propia apertura activa, incluso para el administrador. `cash_service.record_cash_movement` no hace commit y `get_open_session_for_user(for_update=True)` los reutilizarán las ventas. Pagos de compras no generan movimiento de caja: si salen de la caja se registra un retiro (vínculo real con cuentas por pagar, etapa futura). Permisos `cash_registers.read`, `cash.operate` (admin, cajero), `cash_registers.manage`, `cash.supervise` (admin). "Caja Principal" sembrada.
+- Frontend de caja: la apertura y los movimientos devuelven la apertura con su resumen, que se guarda directo en la caché de `current-session` (sin volver a pedirla); las demás consultas de caja se invalidan. Si abrir falla por `USER_HAS_OPEN_SESSION` (abierta en otra pestaña) se recarga la apertura; con otros errores, la lista de cajas. El límite de retiro se valida también en el formulario (centavos). Menú: `NavItem.end` para no resaltar "Mi caja" en `/caja/aperturas`.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -172,3 +173,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Endpoints `/cash-registers` (listar con quién la tiene abierta, obtener, crear, editar/desactivar) y `/cash-sessions` (abrir, `current`, historial filtrable, detalle con resumen, movimientos, registrar ingreso/retiro). Colección Postman actualizada.
 - Tests de concurrencia: aperturas simultáneas de la misma caja (una gana, la otra recibe `CASH_REGISTER_BUSY`) y retiros simultáneos que no sobregiran (verificado fallando sin el bloqueo).
 - 280 tests backend.
+
+### Etapa 7b — Cajas y aperturas (frontend)
+- Páginas `/caja` "Mi caja" (`cash.operate`): `OpenSessionForm` o `CashSessionSummary` + `CashMovementModal` (ingreso/retiro con conceptos sugeridos) + `CashMovementsList`; `/cajas` (`cash_registers.read`, gestión con `manage`) con `CashRegistersTable` y `CashRegisterFormModal`; `/caja/aperturas` (`cash.supervise`) con `CashSessionsTable` y detalle en modal. Menú filtrado por permisos.
+- `CashSessionStatusBadge` y `CashMovementTypeBadge` (color + icono + texto). `types/cash.ts`, `services/cash.ts`, `hooks/useCash.ts`, `utils/cash.ts` (etiquetas y esquemas Zod).
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: cajero abre caja, ingreso, retiro excedido rechazado, retiro con decimales; admin ve la caja ocupada, no puede desactivarla, nombre duplicado rechazado, crea caja, ve el detalle de la apertura. Corregidos: resaltado doble en el menú y valor partido en dos líneas.
+- 280 tests backend, 88 tests frontend.

@@ -3,11 +3,14 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RequirePermission } from '@/components/auth/RequirePermission'
 import { AppLayout } from '@/components/layout/AppLayout'
+import CashRegistersPage from '@/pages/CashRegistersPage'
+import CashSessionsPage from '@/pages/CashSessionsPage'
 import CategoriesPage from '@/pages/CategoriesPage'
 import CustomersPage from '@/pages/CustomersPage'
 import HomePage from '@/pages/HomePage'
 import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
+import MyCashPage from '@/pages/MyCashPage'
 import ProductsPage from '@/pages/ProductsPage'
 import PurchasePage from '@/pages/PurchasePage'
 import PurchasesPage from '@/pages/PurchasesPage'
@@ -48,6 +51,15 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.customersRead} />}>
                 <Route path="clientes" element={<CustomersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.cashOperate} />}>
+                <Route path="caja" element={<MyCashPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.cashSupervise} />}>
+                <Route path="caja/aperturas" element={<CashSessionsPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.cashRegistersRead} />}>
+                <Route path="cajas" element={<CashRegistersPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

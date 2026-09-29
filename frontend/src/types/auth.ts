@@ -15,6 +15,10 @@ export const PERMISSIONS = {
   purchasesCancel: 'purchases.cancel',
   customersRead: 'customers.read',
   customersManage: 'customers.manage',
+  cashRegistersRead: 'cash_registers.read',
+  cashRegistersManage: 'cash_registers.manage',
+  cashOperate: 'cash.operate',
+  cashSupervise: 'cash.supervise',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

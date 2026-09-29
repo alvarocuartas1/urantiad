@@ -2,14 +2,17 @@ import {
   ArrowLeftRight,
   ClipboardList,
   Contact,
+  History,
   House,
   KeyRound,
+  Landmark,
   LogOut,
   Package,
   ShoppingCart,
   Tags,
   Truck,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -24,10 +27,13 @@ interface NavItem {
   label: string
   icon: LucideIcon
   permission?: PermissionCode
+  /** Highlight only on this exact path (not on nested pages such as `/caja/aperturas`). */
+  end?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Inicio', icon: House },
+  { to: '/', label: 'Inicio', icon: House, end: true },
+  { to: '/caja', label: 'Mi caja', icon: Wallet, permission: PERMISSIONS.cashOperate, end: true },
   { to: '/productos', label: 'Productos', icon: Package, permission: PERMISSIONS.productsRead },
   { to: '/categorias', label: 'Categorías', icon: Tags, permission: PERMISSIONS.productsRead },
   {
@@ -60,6 +66,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: Contact,
     permission: PERMISSIONS.customersRead,
   },
+  {
+    to: '/caja/aperturas',
+    label: 'Aperturas',
+    icon: History,
+    permission: PERMISSIONS.cashSupervise,
+  },
+  { to: '/cajas', label: 'Cajas', icon: Landmark, permission: PERMISSIONS.cashRegistersRead },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
 ]
 
@@ -75,11 +88,11 @@ export function AppLayout() {
       <aside className="flex flex-col bg-slate-900 text-slate-100 md:w-60 md:shrink-0">
         <div className="px-5 py-4 text-lg font-bold tracking-tight">URANTIAD</div>
         <nav aria-label="Principal" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col">
-          {visibleItems.map(({ to, label, icon: Icon }) => (
+          {visibleItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={end}
               className={({ isActive }) =>
                 `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap ${
                   isActive ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/10'
