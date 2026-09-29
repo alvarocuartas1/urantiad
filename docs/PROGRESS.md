@@ -154,4 +154,5 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 ### Etapa 5 — Corrección tras la prueba en navegador
 - Recorrido completo en navegador real (Edge sin ventana + `playwright-core`) contra el backend y una base desechable: registrar con lector, confirmar, movimientos, historial de costos y anular como admin.
 - Hallazgo corregido: al anular, el costo promedio no volvía exacto (1.499,98 en vez de 1.500) y el último costo quedaba en el de la compra anulada. Migración `1a48d631b91f`: `inventory_movements.average_cost_before` y `last_cost_before`; la anulación los restaura si la entrada es el último movimiento del producto.
-- 210 tests backend, 76 tests frontend.
+- La lista de productos mostraba ~1 s datos previos a la anulación mientras recargaba: eran datos del mismo usuario (stale-while-revalidate de TanStack Query), no de otra sesión; cerrar sesión limpia la caché. Mejora: `refreshStockQueries` (ajustes, confirmar y anular compras) recarga las consultas de productos, inventario y productos por proveedor que están en pantalla y **descarta** las demás, que al reabrirse cargan frescas en vez de mostrar stock o costos viejos (sin peticiones extra).
+- 210 tests backend, 77 tests frontend.

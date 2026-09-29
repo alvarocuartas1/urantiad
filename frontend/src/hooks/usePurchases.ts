@@ -10,6 +10,7 @@ import {
   updatePurchase,
 } from '@/services/purchases'
 import type { Purchase, PurchaseInput, PurchaseListParams } from '@/types/purchase'
+import { refreshStockQueries } from './stockQueries'
 
 const purchasesKey = ['purchases'] as const
 
@@ -83,12 +84,7 @@ function useInventoryChangingMutation<T>(mutationFn: (variables: T) => Promise<P
   return useMutation({
     mutationFn,
     onSuccess: (purchase: Purchase) =>
-      Promise.all([
-        updateCache(purchase),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['products'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplier-products'] }),
-      ]),
+      Promise.all([updateCache(purchase), refreshStockQueries(queryClient)]),
   })
 }
 

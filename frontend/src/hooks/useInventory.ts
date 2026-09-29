@@ -5,6 +5,7 @@ import type {
   MovementListParams,
   ReplenishmentListParams,
 } from '@/types/inventory'
+import { refreshStockQueries } from './stockQueries'
 
 const inventoryKey = ['inventory'] as const
 
@@ -29,10 +30,6 @@ export function useCreateAdjustment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: AdjustmentCreate) => createAdjustment(data),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: inventoryKey }),
-        queryClient.invalidateQueries({ queryKey: ['products'] }),
-      ]),
+    onSuccess: () => refreshStockQueries(queryClient),
   })
 }
