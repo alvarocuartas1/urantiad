@@ -69,6 +69,13 @@ docs/postman/      # colección "URANTIAD API"
 - **Reposición:** productos activos con stock ≤ punto de reorden, los más urgentes primero, con cantidad sugerida = stock objetivo − stock actual.
 - En el frontend: páginas de movimientos y de reposición, y un modal de ajuste con selector de producto compatible con lector de código de barras (Enter selecciona la coincidencia exacta) y vista previa del stock resultante.
 
+### Proveedores
+
+- Proveedores con tipo y número de documento únicos en conjunto (`nit`, `cc`, `ce`, `passport`, `other`); el número se guarda sin puntos ni espacios. No se eliminan: se desactivan.
+- **Productos por proveedor** (`supplier_products`): código del producto en el proveedor, precio de compra **sin IVA** (la misma base que el costo promedio), fecha del último precio (cambia solo cuando cambia el precio) y observaciones. Solo productos físicos activos y proveedores activos; la asociación sí se puede eliminar.
+- Consultas en ambos sentidos: `GET /suppliers/{id}/products` y `GET /products/{id}/suppliers` (el precio más reciente primero).
+- Permisos `suppliers.read` y `suppliers.manage` (administrador e inventario).
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos

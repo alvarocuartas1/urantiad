@@ -22,3 +22,5 @@ class PermissionCode(StrEnum):
     PRODUCTS_VIEW_COSTS = "products.view_costs"
     INVENTORY_READ = "inventory.read"
     INVENTORY_ADJUST = "inventory.adjust"
+    SUPPLIERS_READ = "suppliers.read"
+    SUPPLIERS_MANAGE = "suppliers.manage"

@@ -12,12 +12,14 @@ from app.models.product import (
 )
 from app.models.refresh_token import RefreshToken
 from app.models.role import Permission, Role, role_permissions
+from app.models.supplier import DocumentType, Supplier, SupplierProduct
 from app.models.user import User
 
 __all__ = [
     "COUNTABLE_UNITS",
     "Base",
     "Category",
+    "DocumentType",
     "InventoryMovement",
     "MovementType",
     "Permission",
@@ -27,6 +29,8 @@ __all__ = [
     "RefreshToken",
     "Role",
     "StockStatus",
+    "Supplier",
+    "SupplierProduct",
     "UnitOfMeasure",
     "User",
     "role_permissions",

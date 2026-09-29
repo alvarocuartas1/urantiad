@@ -10,7 +10,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
-| 4 | Proveedores y productos por proveedor | Pendiente |
+| 4 | Proveedores y productos por proveedor | En curso (4a terminada) |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
 | 6 | Clientes | Pendiente |
 | 7 | Cajas, apertura y movimientos de caja | Pendiente |
@@ -61,6 +61,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Stock negativo configurable con `ALLOW_NEGATIVE_STOCK` (entorno). Cantidades enteras para unidades contables (`COUNTABLE_UNITS`: unit, pack, box, page).
 - Permisos `inventory.read` e `inventory.adjust` (admin, inventario). El cajero no consulta movimientos.
 - Pruebas de concurrencia con dos sesiones reales y datos confirmados (se purgan al inicio y al final).
+- Proveedores: documento único por (tipo, número), número sin puntos ni espacios y con dígito de verificación. Se desactivan, no se borran. Correo validado con `EmailStr` (`email-validator`).
+- `supplier_products`: precio de compra **sin IVA** (misma base que `average_cost`), anulable; `price_updated_at` cambia solo con el precio. Solo productos físicos activos y proveedores activos. La asociación es dato de catálogo y se borra físicamente. En la Etapa 5, confirmar una compra crea la asociación si no existe y actualiza su precio.
+- Permisos `suppliers.read` y `suppliers.manage` (admin, inventario). El cajero no accede a proveedores.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -114,3 +117,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `MovementTypeBadge` (color + icono + texto), `MovementsTable`, `ReplenishmentTable`, `ProductMovementsModal`; acciones "Movimientos" y "Ajustar" en la tabla de productos. `DateFilter` compartido.
 - `utils/decimal.ts` admite valores negativos (`toCents`) y `fromCents`; `decimalSchema` se comparte desde `utils/validation.ts`.
 - 132 tests backend, 53 tests frontend.
+
+### Etapa 4a — Proveedores (backend)
+- Tablas `suppliers` (documento único por tipo y número, índice trigram en nombre) y `supplier_products` (único por proveedor y producto, precio sin IVA y fecha del último precio). Permisos `suppliers.read` y `suppliers.manage` (migración `817ffbfd6d32`).
+- Endpoints `/suppliers` (listar con búsqueda y estado, obtener, crear, editar/desactivar), `/suppliers/{id}/products` (listar, asociar, editar, quitar) y `GET /products/{id}/suppliers`.
+- Dependencia nueva `email-validator` (reconstruir la imagen del backend). Colección Postman actualizada.
+- 170 tests backend.

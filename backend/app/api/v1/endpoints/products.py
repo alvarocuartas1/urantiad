@@ -12,12 +12,14 @@ from app.schemas.product import (
     ProductResponse,
     ProductUpdate,
 )
-from app.services import product_service
+from app.schemas.supplier import SupplierProductResponse
+from app.services import product_service, supplier_service
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 ProductsReader = Annotated[User, require_permission(PermissionCode.PRODUCTS_READ)]
 ProductsManager = Annotated[User, require_permission(PermissionCode.PRODUCTS_MANAGE)]
+SuppliersReader = Annotated[User, require_permission(PermissionCode.SUPPLIERS_READ)]
 
 
 @router.get("", response_model=Page[ProductResponse])
@@ -87,3 +89,12 @@ def list_price_history(
         page=params.page,
         size=params.size,
     )
+
+
+@router.get("/{product_id}/suppliers", response_model=list[SupplierProductResponse])
+def list_product_suppliers(
+    product_id: int, _: SuppliersReader, db: DbSession
+) -> list[SupplierProductResponse]:
+    """Proveedores que venden el producto, con su último precio (el más reciente primero)."""
+    links = supplier_service.list_product_suppliers(db, product_id)
+    return [SupplierProductResponse.model_validate(link) for link in links]

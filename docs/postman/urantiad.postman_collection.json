@@ -43,6 +43,10 @@
     {
       "key": "productId",
       "value": "1"
+    },
+    {
+      "key": "supplierId",
+      "value": "1"
     }
   ],
   "item": [
@@ -764,6 +768,35 @@
             },
             "description": "Permiso products.read. Paginado, del más reciente al más antiguo."
           }
+        },
+        {
+          "name": "Proveedores del producto",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}",
+                "suppliers"
+              ]
+            },
+            "description": "Permiso suppliers.read. Lista (sin paginar) de proveedores del producto con su último precio, el más reciente primero; los que no tienen precio al final. 404 PRODUCT_NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -898,6 +931,332 @@
             },
             "description": "Permiso inventory.read. Productos físicos activos con stock ≤ punto de reorden, los más urgentes primero (agotado, crítico, comprar pronto). suggested_quantity = stock objetivo − stock actual (mínimo 0). stock_status: low|critical|out_of_stock."
           }
+        }
+      ]
+    },
+    {
+      "name": "Suppliers",
+      "item": [
+        {
+          "name": "Listar proveedores",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers?page=1&size=20&search=&is_active=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso suppliers.read. Búsqueda en nombre, documento y contacto; filtro is_active. Paginado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener proveedor",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}"
+              ]
+            },
+            "description": "Permiso suppliers.read. 404 SUPPLIER_NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear proveedor",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers"
+              ]
+            },
+            "description": "Permiso suppliers.manage. document_type: nit|cc|ce|passport|other (por defecto nit). El número se guarda sin puntos ni espacios y en mayúsculas. 409 SUPPLIER_DOCUMENT_TAKEN (tipo + número únicos); 422 VALIDATION_ERROR.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_type\": \"nit\",\n  \"document_number\": \"900.123.456-7\",\n  \"name\": \"Distribuidora Andina S.A.S.\",\n  \"contact_name\": \"Marta Gómez\",\n  \"phone\": \"+57 300 123 4567\",\n  \"email\": \"ventas@andina.co\",\n  \"address\": \"Calle 10 # 20-30\",\n  \"city\": \"Bogotá\",\n  \"notes\": \"Entrega los lunes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('supplierId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar proveedor",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}"
+              ]
+            },
+            "description": "Permiso suppliers.manage. Campos omitidos no cambian; null borra los opcionales. is_active=false desactiva (los proveedores no se eliminan). 409 SUPPLIER_DOCUMENT_TAKEN.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Medellín\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos del proveedor",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}/products?page=1&size=20&search=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso suppliers.read. Búsqueda en nombre, SKU y código de barras del producto y en el código del proveedor. Paginado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Asociar producto",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}",
+                "products"
+              ]
+            },
+            "description": "Permiso suppliers.manage. purchase_price = costo unitario sin IVA (opcional); price_updated_at se fija al registrar el precio. 409 SUPPLIER_PRODUCT_EXISTS, SUPPLIER_INACTIVE; 422 PRODUCT_NOT_FOUND, PRODUCT_INACTIVE, PRODUCT_NOT_PURCHASABLE (servicios).",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{productId}},\n  \"supplier_sku\": \"AND-4410\",\n  \"purchase_price\": \"1800.00\",\n  \"notes\": \"Caja x 12\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar producto del proveedor",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "Permiso suppliers.manage. price_updated_at cambia solo si cambia el precio (null lo borra). 404 SUPPLIER_PRODUCT_NOT_FOUND.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purchase_price\": \"1850.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quitar producto del proveedor",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/suppliers/{{supplierId}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "suppliers",
+                "{{supplierId}}",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "Permiso suppliers.manage. 204. Elimina solo la asociación (dato de catálogo). 404 SUPPLIER_PRODUCT_NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
