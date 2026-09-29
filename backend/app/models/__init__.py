@@ -10,8 +10,10 @@ from app.models.product import (
     StockStatus,
     UnitOfMeasure,
 )
+from app.models.purchase import Purchase, PurchaseItem, PurchaseStatus
 from app.models.refresh_token import RefreshToken
 from app.models.role import Permission, Role, role_permissions
+from app.models.sequence import DocumentSequence
 from app.models.supplier import DocumentType, Supplier, SupplierProduct
 from app.models.user import User
 
@@ -19,6 +21,7 @@ __all__ = [
     "COUNTABLE_UNITS",
     "Base",
     "Category",
+    "DocumentSequence",
     "DocumentType",
     "InventoryMovement",
     "MovementType",
@@ -26,6 +29,9 @@ __all__ = [
     "Product",
     "ProductPriceHistory",
     "ProductType",
+    "Purchase",
+    "PurchaseItem",
+    "PurchaseStatus",
     "RefreshToken",
     "Role",
     "StockStatus",

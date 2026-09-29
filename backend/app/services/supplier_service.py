@@ -100,8 +100,8 @@ def _with_details(stmt: Select[Any]) -> Select[Any]:
     )
 
 
-def _purchasable_product(db: Session, product_id: int) -> Product:
-    """Product that can be linked to a supplier (422 when missing, inactive or a service)."""
+def purchasable_product(db: Session, product_id: int) -> Product:
+    """Product that can be bought from a supplier (422 when missing, inactive or a service)."""
     product = db.get(Product, product_id)
     if product is None:
         raise AppError(
@@ -163,7 +163,7 @@ def add_supplier_product(
         )
     link = SupplierProduct(
         supplier=supplier,
-        product=_purchasable_product(db, data.product_id),
+        product=purchasable_product(db, data.product_id),
         supplier_sku=data.supplier_sku,
         purchase_price=data.purchase_price,
         price_updated_at=datetime.now(UTC) if data.purchase_price is not None else None,

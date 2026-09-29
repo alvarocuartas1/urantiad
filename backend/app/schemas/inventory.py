@@ -68,6 +68,11 @@ class ProductStockSummary(ORMModel):
     unit_of_measure: UnitOfMeasure
 
 
+class PurchaseReference(ORMModel):
+    id: int
+    number: str = Field(examples=["COMPRA-000001"])
+
+
 class MovementResponse(ORMModel):
     id: int
     product: ProductStockSummary
@@ -80,6 +85,7 @@ class MovementResponse(ORMModel):
         description="Nulo sin el permiso products.view_costs."
     )
     reason: str | None
+    purchase: PurchaseReference | None = Field(description="Compra que originó el movimiento.")
     user: UserSummary
     created_at: datetime
 

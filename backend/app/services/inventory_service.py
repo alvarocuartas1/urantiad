@@ -19,13 +19,14 @@ from app.models import (
     MovementType,
     Product,
     ProductType,
+    Purchase,
     StockStatus,
     User,
 )
 from app.schemas.common import PageParams
 from app.schemas.inventory import AdjustmentCreate, AdjustmentDirection
 from app.services.product_service import get_product, matches_search
-from app.services.query import paginate
+from app.services.query import filter_date_range, paginate
 
 CENT = Decimal("0.01")
 
@@ -50,7 +51,23 @@ def weighted_average_cost(
     return (total_cost / (stock + quantity)).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def _validate_quantity(product: Product, quantity: Decimal) -> None:
+def reversed_average_cost(
+    stock: Decimal, average_cost: Decimal, quantity: Decimal, unit_cost: Decimal
+) -> Decimal:
+    """Average cost after removing `quantity` units that entered at `unit_cost` (the inverse
+    of `weighted_average_cost`), rounded to cents.
+
+    The current average is kept when no stock remains, or when the stock value is lower than
+    the value removed (units were sold in between at a lower average).
+    """
+    remaining = stock - quantity
+    remaining_value = stock * average_cost - quantity * unit_cost
+    if remaining <= 0 or remaining_value < 0:
+        return average_cost
+    return (remaining_value / remaining).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def validate_quantity(product: Product, quantity: Decimal) -> None:
     if product.type == ProductType.SERVICE:
         raise AppError(
             "Los servicios no manejan inventario.",
@@ -74,14 +91,17 @@ def record_movement(
     *,
     unit_cost: Decimal | None = None,
     reason: str | None = None,
+    purchase: Purchase | None = None,
 ) -> InventoryMovement:
     """Apply a stock movement to `product` and record it, without committing.
 
     `product` must be locked by the caller (`get_product(..., for_update=True)`) so concurrent
     movements cannot read the same stock. Entries with `unit_cost` recalculate the weighted
-    average and the last cost; entries without it, and every exit, use the current average.
+    average and the last cost; entries without it use the current average. Exits use the
+    current average, except reversals of an entry (`unit_cost` given), which leave at that
+    cost and remove it from the average.
     """
-    _validate_quantity(product, quantity)
+    validate_quantity(product, quantity)
     stock_before = product.current_stock
 
     if movement_type.is_inbound:
@@ -100,7 +120,11 @@ def record_movement(
                 f"solicitado {quantity.normalize():f}.",
                 code="INSUFFICIENT_STOCK",
             )
-        movement_cost = product.average_cost
+        if unit_cost is not None:
+            product.average_cost = reversed_average_cost(
+                stock_before, product.average_cost, quantity, unit_cost
+            )
+        movement_cost = unit_cost if unit_cost is not None else product.average_cost
 
     product.current_stock = stock_after
     movement = InventoryMovement(
@@ -112,6 +136,7 @@ def record_movement(
         unit_cost=movement_cost,
         average_cost_after=product.average_cost,
         reason=reason,
+        purchase=purchase,
         user=user,
     )
     db.add(movement)
@@ -148,25 +173,19 @@ def list_movements(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
 ) -> tuple[Sequence[InventoryMovement], int]:
-    if date_from is not None and date_to is not None and date_from >= date_to:
-        raise AppError(
-            "La fecha inicial debe ser anterior a la fecha final.",
-            code="INVALID_DATE_RANGE",
-            status_code=422,
-        )
-    stmt = select(InventoryMovement)
+    stmt = filter_date_range(
+        select(InventoryMovement), InventoryMovement.created_at, date_from, date_to
+    )
     if product_id is not None:
         stmt = stmt.where(InventoryMovement.product_id == product_id)
     if movement_type is not None:
         stmt = stmt.where(InventoryMovement.movement_type == movement_type)
     if user_id is not None:
         stmt = stmt.where(InventoryMovement.user_id == user_id)
-    if date_from is not None:
-        stmt = stmt.where(InventoryMovement.created_at >= date_from)
-    if date_to is not None:
-        stmt = stmt.where(InventoryMovement.created_at < date_to)
     stmt = stmt.options(
-        selectinload(InventoryMovement.product), selectinload(InventoryMovement.user)
+        selectinload(InventoryMovement.product),
+        selectinload(InventoryMovement.purchase),
+        selectinload(InventoryMovement.user),
     ).order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc())
     return paginate(db, stmt, params)
 

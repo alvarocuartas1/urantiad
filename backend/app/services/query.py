@@ -1,12 +1,15 @@
-"""Query helpers shared by the services: search patterns, pagination and constraint errors."""
+"""Query helpers shared by the services: search patterns, pagination, date ranges and
+constraint errors."""
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.errors import AppError
 from app.schemas.common import PageParams
 
 
@@ -21,6 +24,26 @@ def paginate[T](db: Session, stmt: Select[Any], params: PageParams) -> tuple[Seq
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
     items = db.scalars(stmt.offset(params.offset).limit(params.size)).all()
     return items, total
+
+
+def filter_date_range(
+    stmt: Select[Any],
+    column: ColumnElement[datetime],
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> Select[Any]:
+    """Restrict `stmt` to `date_from <= column < date_to` (either bound may be omitted)."""
+    if date_from is not None and date_to is not None and date_from >= date_to:
+        raise AppError(
+            "La fecha inicial debe ser anterior a la fecha final.",
+            code="INVALID_DATE_RANGE",
+            status_code=422,
+        )
+    if date_from is not None:
+        stmt = stmt.where(column >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(column < date_to)
+    return stmt
 
 
 def violated_constraint(exc: IntegrityError) -> str | None:

@@ -11,7 +11,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
 | 4 | Proveedores y productos por proveedor | Terminada |
-| 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
+| 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | En curso (5a terminada) |
 | 6 | Clientes | Pendiente |
 | 7 | Cajas, apertura y movimientos de caja | Pendiente |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
@@ -64,6 +64,12 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Proveedores: documento único por (tipo, número), número sin puntos ni espacios y con dígito de verificación. Se desactivan, no se borran. Correo validado con `EmailStr` (`email-validator`).
 - `supplier_products`: precio de compra **sin IVA** (misma base que `average_cost`), anulable; `price_updated_at` cambia solo con el precio. Solo productos físicos activos y proveedores activos. La asociación es dato de catálogo y se borra físicamente. En la Etapa 5, confirmar una compra crea la asociación si no existe y actualiza su precio.
 - Permisos `suppliers.read` y `suppliers.manage` (admin, inventario). El cajero no accede a proveedores.
+- Compras: consecutivo asignado al **confirmar** (los borradores no tienen número y se descartan con borrado físico: nunca afectaron nada). Costos sin IVA; descuento por línea en valor (el de la cabecera es la suma); `amount_paid` se digita en el borrador y queda fijo al confirmar (abonos en cuentas por pagar, etapa futura; al llegar la caja, pagar con efectivo deberá generar movimiento de caja).
+- Una línea por producto en cada compra. Las líneas de un borrador se actualizan en sitio al guardar (reemplazarlas violaría el UNIQUE por el orden de flush de SQLAlchemy).
+- Confirmar y anular bloquean la compra y los productos en orden de id (evita deadlocks); la secuencia se toma al final. Timestamps de confirmación y anulación con la hora de la BD (`now()`), como `created_at`.
+- Anulación de compra: tipo `purchase_cancellation` (distinto de `purchase_return`, reservado a devoluciones parciales). Salida al costo neto de la compra con promedio inverso `(S·P − q·c)/(S − q)`; si no queda stock o el valor sería negativo, se conserva el promedio. Último costo = el de la compra confirmada más reciente (si no hay, no cambia). El precio del proveedor no se revierte. Solo el administrador (`purchases.cancel`).
+- Historial de costos sin tabla propia: consulta sobre `purchase_items` de compras confirmadas. Margen bruto = precio sin IVA − costo promedio.
+- `document_sequences` genérica (`purchase` sembrada; `sale` llegará en la Etapa 8). `supplier_service.purchasable_product`, `inventory_service.validate_quantity` y `query.filter_date_range` son compartidos.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -129,3 +135,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `SupplierFormModal` (React Hook Form + Zod, documento normalizado como en el backend, documento duplicado junto al campo) y `SupplierProductsModal` con vistas internas (lista, asociar, editar, quitar) para no anidar modales. `SupplierProductsTable` compartida con `ProductSuppliersModal` (acción "Proveedores" en productos).
 - `ProductPicker` pasa a `components/products/` (compartido) y admite `autoFocus`.
 - 170 tests backend, 60 tests frontend.
+
+### Etapa 5a — Compras (backend)
+- Tablas `document_sequences`, `purchases` (CHECKs de estado, totales y saldo; índice único parcial de factura por proveedor) y `purchase_items` (CHECKs de subtotal y total). `inventory_movements` gana `purchase_id` y el tipo `purchase_cancellation`. Permisos `purchases.read`, `purchases.manage` y `purchases.cancel` (migración `3c7c8fec033a`).
+- Endpoints `/purchases` (listar con búsqueda, proveedor, estado y fechas; obtener; crear; `PUT` de borrador; descartar; `confirm`; `cancel`) y `GET /products/{id}/cost-history`. Los movimientos de inventario devuelven la compra de origen (`purchase`).
+- Frontend mínimo: etiqueta del nuevo tipo de movimiento. Colección Postman actualizada.
+- Tests de concurrencia: confirmaciones simultáneas obtienen consecutivos distintos y seguidos; la misma compra confirmada a la vez se aplica una sola vez (ambos verificados fallando sin el bloqueo).
+- 208 tests backend.

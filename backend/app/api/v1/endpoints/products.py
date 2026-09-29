@@ -12,14 +12,16 @@ from app.schemas.product import (
     ProductResponse,
     ProductUpdate,
 )
+from app.schemas.purchase import CostHistoryPage
 from app.schemas.supplier import SupplierProductResponse
-from app.services import product_service, supplier_service
+from app.services import product_service, purchase_service, supplier_service
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 ProductsReader = Annotated[User, require_permission(PermissionCode.PRODUCTS_READ)]
 ProductsManager = Annotated[User, require_permission(PermissionCode.PRODUCTS_MANAGE)]
 SuppliersReader = Annotated[User, require_permission(PermissionCode.SUPPLIERS_READ)]
+CostsViewer = Annotated[User, require_permission(PermissionCode.PRODUCTS_VIEW_COSTS)]
 
 
 @router.get("", response_model=Page[ProductResponse])
@@ -88,6 +90,25 @@ def list_price_history(
         total=total,
         page=params.page,
         size=params.size,
+    )
+
+
+@router.get("/{product_id}/cost-history", response_model=CostHistoryPage)
+def list_cost_history(
+    product_id: int,
+    _: CostsViewer,
+    db: DbSession,
+    params: Annotated[PageParams, Depends(page_params)],
+) -> CostHistoryPage:
+    """Costo neto de cada compra confirmada (la más reciente primero) con su variación frente
+    a la anterior, más el costo actual y el margen bruto sobre el precio sin IVA."""
+    product, entries, total = purchase_service.list_cost_history(db, product_id, params)
+    return CostHistoryPage(
+        items=entries,
+        total=total,
+        page=params.page,
+        size=params.size,
+        summary=purchase_service.cost_summary(product),
     )
 
 

@@ -7,6 +7,7 @@ export type MovementType =
   | 'adjustment_in'
   | 'adjustment_out'
   | 'purchase_return'
+  | 'purchase_cancellation'
   | 'sale_return'
   | 'sale_cancellation'
 

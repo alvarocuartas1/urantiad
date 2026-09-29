@@ -10,6 +10,7 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   adjustment_in: 'Ajuste positivo',
   adjustment_out: 'Ajuste negativo',
   purchase_return: 'Devolución de compra',
+  purchase_cancellation: 'Anulación de compra',
   sale_return: 'Devolución de venta',
   sale_cancellation: 'Anulación de venta',
 }

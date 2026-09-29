@@ -24,3 +24,6 @@ class PermissionCode(StrEnum):
     INVENTORY_ADJUST = "inventory.adjust"
     SUPPLIERS_READ = "suppliers.read"
     SUPPLIERS_MANAGE = "suppliers.manage"
+    PURCHASES_READ = "purchases.read"
+    PURCHASES_MANAGE = "purchases.manage"
+    PURCHASES_CANCEL = "purchases.cancel"

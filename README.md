@@ -62,7 +62,7 @@ docs/postman/      # colección "URANTIAD API"
 ### Inventario
 
 - El stock cambia **solo** mediante movimientos (`inventory_movements`), que son inmutables: guardan tipo, cantidad, stock anterior y nuevo, costo unitario, costo promedio resultante, motivo, usuario y fecha. Un `CHECK` garantiza que `stock_after = stock_before ± cantidad`.
-- Tipos: entrada por compra, venta, ajuste positivo y negativo, devolución de compra, devolución de venta y anulación de venta (los de compras y ventas se usan en sus etapas).
+- Tipos: entrada por compra, anulación de compra, venta, ajuste positivo y negativo, devolución de compra, devolución de venta y anulación de venta (los de ventas y devoluciones se usan en sus etapas). Los movimientos de compras enlazan su compra (`purchase_id`).
 - **Ajustes manuales** (`inventory.adjust`) con motivo obligatorio. Una entrada con costo recalcula el **costo promedio ponderado** y el último costo (así se hace la carga inicial); sin costo, se valora al promedio actual. Las salidas usan el costo promedio.
 - **Stock negativo** no permitido por defecto (`ALLOW_NEGATIVE_STOCK`). Las unidades contables (unidad, paquete, caja, página) solo aceptan cantidades enteras.
 - Cada movimiento bloquea la fila del producto (`SELECT … FOR UPDATE`): dos operaciones simultáneas sobre el mismo producto se aplican en serie y nunca venden stock inexistente.
@@ -76,6 +76,16 @@ docs/postman/      # colección "URANTIAD API"
 - Consultas en ambos sentidos: `GET /suppliers/{id}/products` y `GET /products/{id}/suppliers` (el precio más reciente primero).
 - Permisos `suppliers.read` y `suppliers.manage` (administrador e inventario).
 - En el frontend: página `/proveedores` (búsqueda, estado, crear/editar/desactivar) con un modal de productos del proveedor (asociar con el selector compatible con lector de código de barras, editar código y precio, quitar), y la acción "Proveedores" en la tabla de productos.
+
+### Compras
+
+- Estados **borrador → confirmada → anulada**. El borrador se edita libremente (`PUT` reemplaza cabecera y líneas) o se descarta; no mueve inventario ni consume consecutivo.
+- Costos **sin IVA**, descuento por línea en valor e IVA por línea (por defecto el del producto). Los totales los calcula el backend y `CHECK`s en la base garantizan su coherencia (`total = subtotal − descuentos + IVA`, `saldo = total − pagado`).
+- **Confirmar** (una transacción): consecutivo `COMPRA-000001` desde `document_sequences` (fila bloqueada, sin huecos), entradas de inventario al costo neto de cada línea (recalcula costo promedio y último costo) y alta o actualización del precio en productos por proveedor.
+- **Anular** (solo administrador, `purchases.cancel`): movimientos inversos al costo de la compra, que se retira del costo promedio; el último costo vuelve al de la compra confirmada más reciente. Si las unidades ya no están en stock, falla sin cambios.
+- Una factura de proveedor no se registra dos veces (índice único parcial que ignora compras anuladas).
+- **Historial de costos** (`GET /products/{id}/cost-history`, `products.view_costs`): costo neto por compra, variación frente a la anterior y margen bruto sobre el precio sin IVA. Se consulta sobre las líneas de compras confirmadas, sin tabla duplicada.
+- Permisos `purchases.read` y `purchases.manage` (administrador e inventario) y `purchases.cancel` (administrador).
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

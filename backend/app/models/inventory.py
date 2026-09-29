@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.product import Product, in_values
+from app.models.purchase import Purchase
 from app.models.user import User
 
 
@@ -16,6 +17,8 @@ class MovementType(StrEnum):
     ADJUSTMENT_IN = "adjustment_in"
     ADJUSTMENT_OUT = "adjustment_out"
     PURCHASE_RETURN = "purchase_return"
+    # Reverses a whole confirmed purchase; partial returns will use PURCHASE_RETURN.
+    PURCHASE_CANCELLATION = "purchase_cancellation"
     SALE_RETURN = "sale_return"
     SALE_CANCELLATION = "sale_cancellation"
 
@@ -33,6 +36,9 @@ INBOUND_MOVEMENT_TYPES = frozenset(
     }
 )
 ADJUSTMENT_TYPES = frozenset({MovementType.ADJUSTMENT_IN, MovementType.ADJUSTMENT_OUT})
+PURCHASE_MOVEMENT_TYPES = frozenset(
+    {MovementType.PURCHASE_ENTRY, MovementType.PURCHASE_CANCELLATION}
+)
 
 
 def _type_in(types: frozenset[MovementType]) -> str:
@@ -43,7 +49,7 @@ class InventoryMovement(Base):
     """Immutable stock change of a physical product: the only way `current_stock` changes.
 
     `quantity` is always positive; the movement type gives the direction. Source documents
-    (purchases, sales) are linked in their own stages through nullable foreign keys.
+    are linked through nullable foreign keys (`purchase_id`; `sale_id` arrives with sales).
     """
 
     __tablename__ = "inventory_movements"
@@ -62,6 +68,10 @@ class InventoryMovement(Base):
             f"NOT {_type_in(ADJUSTMENT_TYPES)} OR (reason IS NOT NULL AND btrim(reason) <> '')",
             name="adjustment_reason_required",
         ),
+        CheckConstraint(
+            f"NOT {_type_in(PURCHASE_MOVEMENT_TYPES)} OR purchase_id IS NOT NULL",
+            name="purchase_movement_linked",
+        ),
         Index("ix_inventory_movements_product_id_created_at", "product_id", "created_at"),
     )
 
@@ -75,8 +85,12 @@ class InventoryMovement(Base):
     unit_cost: Mapped[Decimal]
     average_cost_after: Mapped[Decimal]
     reason: Mapped[str | None] = mapped_column(String(255))
+    purchase_id: Mapped[int | None] = mapped_column(
+        ForeignKey("purchases.id", ondelete="RESTRICT"), index=True
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
 
     product: Mapped[Product] = relationship()
+    purchase: Mapped[Purchase | None] = relationship()
     user: Mapped[User] = relationship()
