@@ -27,3 +27,5 @@ class PermissionCode(StrEnum):
     PURCHASES_READ = "purchases.read"
     PURCHASES_MANAGE = "purchases.manage"
     PURCHASES_CANCEL = "purchases.cancel"
+    CUSTOMERS_READ = "customers.read"
+    CUSTOMERS_MANAGE = "customers.manage"

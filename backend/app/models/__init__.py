@@ -1,6 +1,7 @@
 # Import every model module here so Alembic autogenerate sees all tables.
 from app.models.base import Base
 from app.models.category import Category
+from app.models.customer import Customer
 from app.models.inventory import InventoryMovement, MovementType
 from app.models.product import (
     COUNTABLE_UNITS,
@@ -21,6 +22,7 @@ __all__ = [
     "COUNTABLE_UNITS",
     "Base",
     "Category",
+    "Customer",
     "DocumentSequence",
     "DocumentType",
     "InventoryMovement",

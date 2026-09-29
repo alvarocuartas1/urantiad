@@ -112,7 +112,11 @@ def test_me_returns_current_user(
 
     assert response.status_code == 200
     assert response.json()["username"] == "cajero"
-    assert response.json()["permissions"] == ["products.read"]
+    assert response.json()["permissions"] == [
+        "customers.manage",
+        "customers.read",
+        "products.read",
+    ]
 
 
 def test_me_without_token_returns_401(client: TestClient) -> None:
