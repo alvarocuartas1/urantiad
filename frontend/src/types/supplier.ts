@@ -1,11 +1,8 @@
 import type { UnitOfMeasure } from './catalog'
+import type { DocumentType, IdentityDocument } from './document'
 
-export type DocumentType = 'nit' | 'cc' | 'ce' | 'passport' | 'other'
-
-export interface SupplierSummary {
+export interface SupplierSummary extends IdentityDocument {
   id: number
-  document_type: DocumentType
-  document_number: string
   name: string
   is_active: boolean
 }

@@ -1,7 +1,7 @@
 import { Package, Pencil } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { Supplier } from '@/types/supplier'
-import { formatDocument } from '@/utils/supplier'
+import { formatDocument } from '@/utils/document'
 
 interface SuppliersTableProps {
   suppliers: Supplier[]

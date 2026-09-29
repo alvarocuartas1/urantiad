@@ -12,7 +12,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
 | 4 | Proveedores y productos por proveedor | Terminada |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
-| 6 | Clientes | Pendiente |
+| 6 | Clientes | Terminada |
 | 7 | Cajas, apertura y movimientos de caja | Pendiente |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
 | 9 | Arqueo y cierre de caja | Pendiente |
@@ -71,6 +71,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Historial de costos sin tabla propia: consulta sobre `purchase_items` de compras confirmadas. Margen bruto = precio sin IVA − costo promedio.
 - Frontend de compras: el editor calcula totales en centavos con el mismo redondeo HALF_UP del backend (solo vista previa; el backend es la fuente de verdad). Escanear un producto ya presente enfoca su línea en vez de duplicarla. "Guardar y confirmar" guarda el borrador y abre el resumen; una compra nueva pasa a `/compras/:id` al salir del resumen. Selector de proveedores limitado a 100 activos (suficiente para el negocio; revisar si crece).
 - `document_sequences` genérica (`purchase` sembrada; `sale` llegará en la Etapa 8). `supplier_service.purchasable_product`, `inventory_service.validate_quantity` y `query.filter_date_range` son compartidos.
+- Clientes: documento obligatorio y único por (tipo, número), como proveedores. "Consumidor final" (`CC 222222222222`, DIAN) sembrado por migración y marcado con `is_default` (índice único parcial); es de solo lectura (`DEFAULT_CUSTOMER_READONLY`) y encabeza el listado. Las ventas (Etapa 8) tendrán `customer_id NOT NULL` y usarán ese cliente si no se elige otro. Permisos `customers.read` y `customers.manage` (admin y cajero; inventario no).
+- Campos de contacto compartidos entre proveedores y clientes: backend `schemas/contact.py`; frontend `types/document.ts`, `utils/document.ts` y esquemas Zod en `utils/validation.ts`.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -156,3 +158,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Hallazgo corregido: al anular, el costo promedio no volvía exacto (1.499,98 en vez de 1.500) y el último costo quedaba en el de la compra anulada. Migración `1a48d631b91f`: `inventory_movements.average_cost_before` y `last_cost_before`; la anulación los restaura si la entrada es el último movimiento del producto.
 - La lista de productos mostraba ~1 s datos previos a la anulación mientras recargaba: eran datos del mismo usuario (stale-while-revalidate de TanStack Query), no de otra sesión; cerrar sesión limpia la caché. Mejora: `refreshStockQueries` (ajustes, confirmar y anular compras) recarga las consultas de productos, inventario y productos por proveedor que están en pantalla y **descarta** las demás, que al reabrirse cargan frescas en vez de mostrar stock o costos viejos (sin peticiones extra).
 - 210 tests backend, 77 tests frontend.
+
+### Etapa 6 — Clientes
+- Tabla `customers` (documento único por tipo y número, índice trigram en nombre, `is_default` con índice único parcial). Semilla "Consumidor final" y permisos `customers.read` y `customers.manage` (migración `16dc3234dce6`).
+- Endpoints `/customers` (listar con búsqueda por nombre, documento o teléfono y estado; obtener; crear; editar/desactivar). "Consumidor final" no se modifica (409).
+- Página `/clientes` (menú filtrado por `customers.read`), `CustomerFormModal` (React Hook Form + Zod) y `CustomersTable` (insignia "Por defecto" con candado, sin acciones).
+- Refactor sin cambio de comportamiento: campos de contacto compartidos con proveedores. Colección Postman actualizada.
+- 245 tests backend, 82 tests frontend.

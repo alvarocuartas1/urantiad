@@ -10,6 +10,45 @@ export const decimalSchema = z
   .refine(isDecimalInput, DECIMAL_MESSAGE)
   .transform(normalizeDecimal)
 
+/** Optional text: an empty value is sent as `null`. */
+export function optionalTextSchema(max: number, label: string) {
+  return z
+    .string()
+    .trim()
+    .max(max, `${label} no puede superar ${max} caracteres.`)
+    .transform((value) => value || null)
+}
+
+// Contact fields mirror the backend rules in `app/schemas/contact.py`.
+export const documentTypeSchema = z.enum(['nit', 'cc', 'ce', 'passport', 'other'])
+
+/** Stored without dots or spaces, as the backend does: "900.123.456-7" → "900123456-7". */
+export const documentNumberSchema = z
+  .string()
+  .transform((value) => value.replace(/[.\s]/g, '').toUpperCase())
+  .pipe(
+    z
+      .string()
+      .min(1, 'Ingrese el número de documento.')
+      .max(30, 'El documento no puede superar 30 caracteres.')
+      .regex(/^[A-Z0-9][A-Z0-9-]*$/, 'Use solo letras, números y guion.'),
+  )
+
+export const phoneSchema = z
+  .string()
+  .trim()
+  .max(30, 'El teléfono no puede superar 30 caracteres.')
+  .regex(/^[0-9+() -]*$/, 'Use solo números, espacios y los signos + - ( ).')
+  .transform((value) => value || null)
+
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(255, 'El correo no puede superar 255 caracteres.')
+  .refine((value) => !value || z.email().safeParse(value).success, 'Ingrese un correo válido.')
+  .transform((value) => value || null)
+
 /** Mirrors the backend rules in `app/schemas/user.py`. */
 export const newPasswordSchema = z
   .string()

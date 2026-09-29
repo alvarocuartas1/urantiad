@@ -13,6 +13,8 @@ export const PERMISSIONS = {
   purchasesRead: 'purchases.read',
   purchasesManage: 'purchases.manage',
   purchasesCancel: 'purchases.cancel',
+  customersRead: 'customers.read',
+  customersManage: 'customers.manage',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

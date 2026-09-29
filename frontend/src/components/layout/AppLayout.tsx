@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   ClipboardList,
+  Contact,
   House,
   KeyRound,
   LogOut,
@@ -52,6 +53,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Compras',
     icon: ShoppingCart,
     permission: PERMISSIONS.purchasesRead,
+  },
+  {
+    to: '/clientes',
+    label: 'Clientes',
+    icon: Contact,
+    permission: PERMISSIONS.customersRead,
   },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
 ]

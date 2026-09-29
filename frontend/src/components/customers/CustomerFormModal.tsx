@@ -5,9 +5,9 @@ import { Alert } from '@/components/ui/Alert'
 import { FormActions } from '@/components/ui/FormActions'
 import { SelectField, TextField } from '@/components/ui/FormField'
 import { Modal } from '@/components/ui/Modal'
-import { useCreateSupplier, useUpdateSupplier } from '@/hooks/useSuppliers'
+import { useCreateCustomer, useUpdateCustomer } from '@/hooks/useCustomers'
+import type { Customer } from '@/types/customer'
 import type { DocumentType } from '@/types/document'
-import type { Supplier } from '@/types/supplier'
 import { labelEntries } from '@/utils/catalog'
 import { DOCUMENT_TYPE_LABELS } from '@/utils/document'
 import { getErrorMessage, isApiErrorCode } from '@/utils/errors'
@@ -19,68 +19,62 @@ import {
   phoneSchema,
 } from '@/utils/validation'
 
-/** Mirrors the backend rules in `app/schemas/supplier.py` and `app/schemas/contact.py`. */
-const supplierSchema = z.object({
+/** Mirrors the backend rules in `app/schemas/customer.py` and `app/schemas/contact.py`. */
+const customerSchema = z.object({
   document_type: documentTypeSchema,
   document_number: documentNumberSchema,
   name: z
     .string()
     .trim()
-    .min(1, 'Ingrese el nombre o razón social.')
+    .min(1, 'Ingrese el nombre del cliente.')
     .max(150, 'El nombre no puede superar 150 caracteres.'),
-  contact_name: optionalTextSchema(100, 'El contacto'),
   phone: phoneSchema,
   email: emailSchema,
   address: optionalTextSchema(255, 'La dirección'),
-  city: optionalTextSchema(100, 'La ciudad'),
-  notes: optionalTextSchema(500, 'Las observaciones'),
   is_active: z.boolean(),
 })
 
-type SupplierInput = z.input<typeof supplierSchema>
-type SupplierValues = z.output<typeof supplierSchema>
+type CustomerInput = z.input<typeof customerSchema>
+type CustomerValues = z.output<typeof customerSchema>
 
-interface SupplierFormModalProps {
-  /** Supplier to edit; omit to create a new one. */
-  supplier?: Supplier
+interface CustomerFormModalProps {
+  /** Customer to edit; omit to create a new one. */
+  customer?: Customer
   onClose: () => void
 }
 
-export function SupplierFormModal({ supplier, onClose }: SupplierFormModalProps) {
-  const createMutation = useCreateSupplier()
-  const updateMutation = useUpdateSupplier()
-  const mutation = supplier ? updateMutation : createMutation
+export function CustomerFormModal({ customer, onClose }: CustomerFormModalProps) {
+  const createMutation = useCreateCustomer()
+  const updateMutation = useUpdateCustomer()
+  const mutation = customer ? updateMutation : createMutation
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors },
-  } = useForm<SupplierInput, unknown, SupplierValues>({
-    resolver: zodResolver(supplierSchema),
+  } = useForm<CustomerInput, unknown, CustomerValues>({
+    resolver: zodResolver(customerSchema),
     defaultValues: {
-      document_type: supplier?.document_type ?? 'nit',
-      document_number: supplier?.document_number ?? '',
-      name: supplier?.name ?? '',
-      contact_name: supplier?.contact_name ?? '',
-      phone: supplier?.phone ?? '',
-      email: supplier?.email ?? '',
-      address: supplier?.address ?? '',
-      city: supplier?.city ?? '',
-      notes: supplier?.notes ?? '',
-      is_active: supplier?.is_active ?? true,
+      document_type: customer?.document_type ?? 'cc',
+      document_number: customer?.document_number ?? '',
+      name: customer?.name ?? '',
+      phone: customer?.phone ?? '',
+      email: customer?.email ?? '',
+      address: customer?.address ?? '',
+      is_active: customer?.is_active ?? true,
     },
   })
 
   const onError = (error: Error) => {
-    if (isApiErrorCode(error, 'SUPPLIER_DOCUMENT_TAKEN')) {
+    if (isApiErrorCode(error, 'CUSTOMER_DOCUMENT_TAKEN')) {
       setError('document_number', { message: getErrorMessage(error) })
     }
   }
 
   const onSubmit = handleSubmit(({ is_active, ...values }) => {
-    if (supplier) {
+    if (customer) {
       updateMutation.mutate(
-        { id: supplier.id, data: { ...values, is_active } },
+        { id: customer.id, data: { ...values, is_active } },
         { onSuccess: onClose, onError },
       )
     } else {
@@ -89,7 +83,7 @@ export function SupplierFormModal({ supplier, onClose }: SupplierFormModalProps)
   })
 
   return (
-    <Modal title={supplier ? 'Editar proveedor' : 'Nuevo proveedor'} onClose={onClose} size="lg">
+    <Modal title={customer ? 'Editar cliente' : 'Nuevo cliente'} onClose={onClose} size="lg">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         {mutation.isError && !errors.document_number && (
           <Alert>{getErrorMessage(mutation.error)}</Alert>
@@ -109,24 +103,18 @@ export function SupplierFormModal({ supplier, onClose }: SupplierFormModalProps)
           <TextField
             label="Número de documento"
             autoComplete="off"
-            hint="Con dígito de verificación si es NIT (900123456-7)."
+            autoFocus
             error={errors.document_number?.message}
             {...register('document_number')}
           />
           <div className="sm:col-span-2">
             <TextField
-              label="Nombre o razón social"
+              label="Nombre"
               autoComplete="off"
               error={errors.name?.message}
               {...register('name')}
             />
           </div>
-          <TextField
-            label="Persona de contacto (opcional)"
-            autoComplete="off"
-            error={errors.contact_name?.message}
-            {...register('contact_name')}
-          />
           <TextField
             label="Teléfono (opcional)"
             type="tel"
@@ -141,12 +129,6 @@ export function SupplierFormModal({ supplier, onClose }: SupplierFormModalProps)
             error={errors.email?.message}
             {...register('email')}
           />
-          <TextField
-            label="Ciudad (opcional)"
-            autoComplete="off"
-            error={errors.city?.message}
-            {...register('city')}
-          />
           <div className="sm:col-span-2">
             <TextField
               label="Dirección (opcional)"
@@ -155,23 +137,15 @@ export function SupplierFormModal({ supplier, onClose }: SupplierFormModalProps)
               {...register('address')}
             />
           </div>
-          <div className="sm:col-span-2">
-            <TextField
-              label="Observaciones (opcional)"
-              autoComplete="off"
-              error={errors.notes?.message}
-              {...register('notes')}
-            />
-          </div>
         </div>
-        {supplier && (
+        {customer && (
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
               className="size-4 rounded border-slate-300"
               {...register('is_active')}
             />
-            Proveedor activo
+            Cliente activo
           </label>
         )}
         <FormActions onClose={onClose} loading={mutation.isPending} />

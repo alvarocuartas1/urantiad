@@ -1,4 +1,4 @@
-import type { DocumentType, SupplierSummary } from '@/types/supplier'
+import type { DocumentType, IdentityDocument } from '@/types/document'
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   nit: 'NIT',
@@ -17,8 +17,6 @@ const DOCUMENT_TYPE_ABBREVIATIONS: Record<DocumentType, string> = {
 }
 
 /** "NIT 900123456-7". */
-export function formatDocument(
-  supplier: Pick<SupplierSummary, 'document_type' | 'document_number'>,
-) {
-  return `${DOCUMENT_TYPE_ABBREVIATIONS[supplier.document_type]} ${supplier.document_number}`
+export function formatDocument(document: IdentityDocument) {
+  return `${DOCUMENT_TYPE_ABBREVIATIONS[document.document_type]} ${document.document_number}`
 }

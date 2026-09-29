@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RequirePermission } from '@/components/auth/RequirePermission'
 import { AppLayout } from '@/components/layout/AppLayout'
 import CategoriesPage from '@/pages/CategoriesPage'
+import CustomersPage from '@/pages/CustomersPage'
 import HomePage from '@/pages/HomePage'
 import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
@@ -44,6 +45,9 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.purchasesManage} />}>
                 <Route path="compras/nueva" element={<PurchasePage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.customersRead} />}>
+                <Route path="clientes" element={<CustomersPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

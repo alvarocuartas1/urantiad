@@ -2,7 +2,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { SupplierProduct } from '@/types/supplier'
 import { formatCurrency, formatDateTime } from '@/utils/format'
-import { formatDocument } from '@/utils/supplier'
+import { formatDocument } from '@/utils/document'
 
 interface SupplierProductsTableProps {
   links: SupplierProduct[]

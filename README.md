@@ -88,6 +88,13 @@ docs/postman/      # colección "URANTIAD API"
 - Permisos `purchases.read` y `purchases.manage` (administrador e inventario) y `purchases.cancel` (administrador).
 - En el frontend: `/compras` (búsqueda, estado, proveedor y fechas) y el editor `/compras/nueva` · `/compras/:id`. El lector de código de barras agrega la línea con el precio del proveedor (o el último costo) y enfoca su cantidad; Enter vuelve al lector. Totales en vivo con el mismo redondeo del backend; "Guardar y confirmar" muestra un resumen de lo que entra al inventario. Las compras confirmadas se ven en solo lectura, con la acción de anular para el administrador. Acción "Costos" en productos y número de compra enlazado en el historial de movimientos.
 
+### Clientes
+
+- Clientes con tipo y número de documento únicos en conjunto (mismas reglas que proveedores), nombre, teléfono, correo y dirección. No se eliminan: se desactivan.
+- La migración crea el cliente del sistema **"Consumidor final"** (`CC 222222222222`, `is_default`), que se usará en las ventas sin cliente registrado. No se puede editar ni desactivar, y un índice único parcial garantiza que solo exista uno.
+- Permisos `customers.read` y `customers.manage` (administrador y cajero).
+- En el frontend: página `/clientes` (búsqueda por nombre, documento o teléfono; estado; crear/editar/desactivar).
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos
