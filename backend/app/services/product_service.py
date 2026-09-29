@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -67,6 +67,16 @@ def _reject_product_cost() -> AppError:
     )
 
 
+def matches_search(search: str) -> ColumnElement[bool]:
+    """Condition matching products whose name, SKU or barcode contains `search`."""
+    pattern = contains_pattern(search)
+    return or_(
+        Product.name.ilike(pattern),
+        Product.sku.ilike(pattern),
+        Product.barcode.ilike(pattern),
+    )
+
+
 def list_products(
     db: Session,
     params: PageParams,
@@ -79,14 +89,7 @@ def list_products(
 ) -> tuple[Sequence[Product], int]:
     stmt = select(Product)
     if search and search.strip():
-        pattern = contains_pattern(search.strip())
-        stmt = stmt.where(
-            or_(
-                Product.name.ilike(pattern),
-                Product.sku.ilike(pattern),
-                Product.barcode.ilike(pattern),
-            )
-        )
+        stmt = stmt.where(matches_search(search.strip()))
     if category_id is not None:
         stmt = stmt.where(Product.category_id == category_id)
     if product_type is not None:
@@ -103,7 +106,8 @@ def list_products(
 def get_product(db: Session, product_id: int, *, for_update: bool = False) -> Product:
     stmt = select(Product).options(selectinload(Product.category)).where(Product.id == product_id)
     if for_update:
-        stmt = stmt.with_for_update(of=Product)
+        # populate_existing refreshes an already loaded instance with the locked row's values.
+        stmt = stmt.with_for_update(of=Product).execution_options(populate_existing=True)
     product = db.scalar(stmt)
     if product is None:
         raise NotFoundError("El producto no existe.", code="PRODUCT_NOT_FOUND")

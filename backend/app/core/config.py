@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     login_max_attempts: int = Field(default=5, gt=0)
     login_lockout_minutes: int = Field(default=15, gt=0)
 
+    # Inventory: whether outgoing movements may leave a product with negative stock.
+    allow_negative_stock: bool = False
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors_origins(cls, value: str | list[str]) -> list[str]:

@@ -9,7 +9,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 0 | Configuración inicial: estructura del repo, Docker Compose (PostgreSQL + backend + frontend), FastAPI base, Vite + React + Tailwind, Alembic, Ruff/ESLint, `.env.example`, CI en GitHub Actions | Terminada |
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
-| 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Pendiente |
+| 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | En curso (3a terminada) |
 | 4 | Proveedores y productos por proveedor | Pendiente |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
 | 6 | Clientes | Pendiente |
@@ -55,6 +55,12 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Conflictos de unicidad se traducen por nombre de constraint (`violated_constraint`).
 - Costos visibles solo con `products.view_costs` (admin, inventario): sin el permiso la API devuelve `average_cost`/`last_cost` en `null` (`ProductResponse.for_user`).
 - Frontend: decimales como string; comparación en centavos (`bigint`); formato con `Intl` (acepta strings). Inputs numéricos aceptan `,` o `.` decimal y rechazan separadores de miles.
+- Movimientos de inventario inmutables; `quantity > 0` y el tipo da el sentido. `inventory_service.record_movement` es el único punto que cambia stock y costos; no hace commit (compras y ventas lo reutilizan en su transacción) y exige el producto bloqueado (`get_product(for_update=True)`, con `populate_existing`).
+- Documento de origen: FK reales y anulables (`purchase_id`, `sale_id`) que se añadirán en las etapas 5 y 8, no referencias polimórficas. Un ajuste = un movimiento de un producto (sin cabecera ni consecutivo).
+- Costeo en ajustes: entrada con `unit_cost` recalcula promedio ponderado (redondeo HALF_UP a centavos; con stock ≤ 0 el promedio es el costo de entrada) y último costo; sin costo, se valora al promedio. Salidas al costo promedio.
+- Stock negativo configurable con `ALLOW_NEGATIVE_STOCK` (entorno). Cantidades enteras para unidades contables (`COUNTABLE_UNITS`: unit, pack, box, page).
+- Permisos `inventory.read` e `inventory.adjust` (admin, inventario). El cajero no consulta movimientos.
+- Pruebas de concurrencia con dos sesiones reales y datos confirmados (se purgan al inicio y al final).
 
 ## Registro de etapas terminadas
 
@@ -93,3 +99,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `StockStatusBadge` (color + icono + texto), `formatCurrency`/`formatQuantity`, `utils/decimal.ts`, formulario de producto con Zod (servicios sin niveles de stock, costo manual).
 - Componentes compartidos `SearchInput`, `FilterSelect`, `FormActions`; `Modal` con tamaño `lg`; `StatusBadge` con tono `warning` e icono opcional.
 - 102 tests backend, 43 tests frontend.
+
+### Etapa 3a — Inventario (backend)
+- Tabla `inventory_movements` (7 tipos, stock anterior/nuevo con CHECK de consistencia, costo unitario, costo promedio resultante, motivo obligatorio en ajustes). Permisos `inventory.read` e `inventory.adjust` (migración `3737d7632657`).
+- Endpoints `POST /inventory/adjustments`, `GET /inventory/movements` (filtros por producto, tipo, usuario y rango de fechas con zona horaria) y `GET /inventory/replenishment` (reposición con cantidad sugerida, más urgentes primero).
+- Costo promedio ponderado, validación de stock negativo y de cantidades enteras. Costos ocultos sin `products.view_costs`.
+- Tests de concurrencia (dos sesiones y hilos reales): salidas simultáneas no sobrevenden; entradas simultáneas se encadenan. Verificados fallando sin el bloqueo.
+- 132 tests backend.

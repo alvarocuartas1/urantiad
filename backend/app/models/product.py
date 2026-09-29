@@ -39,6 +39,12 @@ class UnitOfMeasure(StrEnum):
     PAGE = "page"
 
 
+# Units sold whole: their quantities must be integers. The rest (weight, volume) allow decimals.
+COUNTABLE_UNITS = frozenset(
+    {UnitOfMeasure.UNIT, UnitOfMeasure.PACK, UnitOfMeasure.BOX, UnitOfMeasure.PAGE}
+)
+
+
 class StockStatus(StrEnum):
     OK = "ok"
     LOW = "low"
@@ -46,15 +52,16 @@ class StockStatus(StrEnum):
     OUT_OF_STOCK = "out_of_stock"
 
 
-def _in_values(column: str, enum: type[StrEnum]) -> str:
+def in_values(column: str, enum: type[StrEnum]) -> str:
+    """SQL condition restricting `column` to the values of `enum` (for CHECK constraints)."""
     return f"{column} IN ({', '.join(repr(item.value) for item in enum)})"
 
 
 class Product(TimestampMixin, Base):
     __tablename__ = "products"
     __table_args__ = (
-        CheckConstraint(_in_values("type", ProductType), name="type_valid"),
-        CheckConstraint(_in_values("unit_of_measure", UnitOfMeasure), name="unit_of_measure_valid"),
+        CheckConstraint(in_values("type", ProductType), name="type_valid"),
+        CheckConstraint(in_values("unit_of_measure", UnitOfMeasure), name="unit_of_measure_valid"),
         CheckConstraint("sku = upper(sku)", name="sku_uppercase"),
         CheckConstraint("tax_rate >= 0 AND tax_rate <= 100", name="tax_rate_range"),
         CheckConstraint("sale_price >= 0", name="sale_price_non_negative"),

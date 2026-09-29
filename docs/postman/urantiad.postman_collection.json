@@ -766,6 +766,140 @@
           }
         }
       ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Registrar ajuste",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/inventory/adjustments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "adjustments"
+              ]
+            },
+            "description": "Permiso inventory.adjust. 201: devuelve el movimiento y el producto actualizado. direction: in|out. unit_cost solo en entradas: recalcula el costo promedio ponderado y el último costo (si se omite, se valora al costo promedio actual). Motivo obligatorio. 409 INSUFFICIENT_STOCK (salvo ALLOW_NEGATIVE_STOCK=true); 422 SERVICE_WITHOUT_INVENTORY, FRACTIONAL_QUANTITY (unidades contables), VALIDATION_ERROR; 404 PRODUCT_NOT_FOUND.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{productId}},\n  \"direction\": \"in\",\n  \"quantity\": \"24\",\n  \"unit_cost\": \"1800.00\",\n  \"reason\": \"Carga inicial de inventario\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar movimientos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/inventory/movements?page=1&size=20&product_id=&movement_type=&user_id=&date_from=&date_to=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "product_id",
+                  "value": ""
+                },
+                {
+                  "key": "movement_type",
+                  "value": ""
+                },
+                {
+                  "key": "user_id",
+                  "value": ""
+                },
+                {
+                  "key": "date_from",
+                  "value": ""
+                },
+                {
+                  "key": "date_to",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso inventory.read. Paginado, del más reciente al más antiguo. movement_type: purchase_entry|sale|adjustment_in|adjustment_out|purchase_return|sale_return|sale_cancellation. date_from (incluido) y date_to (excluido) con zona horaria, ej. 2026-09-01T00:00:00-05:00. 422 INVALID_DATE_RANGE. Sin products.view_costs, unit_cost y average_cost_after llegan en null."
+          }
+        },
+        {
+          "name": "Productos que requieren reposición",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/inventory/replenishment?page=1&size=20&search=&category_id=&stock_status=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "inventory",
+                "replenishment"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "category_id",
+                  "value": ""
+                },
+                {
+                  "key": "stock_status",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Permiso inventory.read. Productos físicos activos con stock ≤ punto de reorden, los más urgentes primero (agotado, crítico, comprar pronto). suggested_quantity = stock objetivo − stock actual (mínimo 0). stock_status: low|critical|out_of_stock."
+          }
+        }
+      ]
     }
   ]
 }

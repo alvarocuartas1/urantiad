@@ -59,6 +59,15 @@ docs/postman/      # colección "URANTIAD API"
 - Una categoría con productos no se elimina: se desactiva.
 - En el frontend los importes viajan como texto decimal (`"2500.00"`) y nunca se convierten a `number`: se formatean con `Intl` y se comparan en centavos (`utils/decimal.ts`). Los campos numéricos rechazan puntos de miles ("2.500") para no confundirlos con decimales.
 
+### Inventario
+
+- El stock cambia **solo** mediante movimientos (`inventory_movements`), que son inmutables: guardan tipo, cantidad, stock anterior y nuevo, costo unitario, costo promedio resultante, motivo, usuario y fecha. Un `CHECK` garantiza que `stock_after = stock_before ± cantidad`.
+- Tipos: entrada por compra, venta, ajuste positivo y negativo, devolución de compra, devolución de venta y anulación de venta (los de compras y ventas se usan en sus etapas).
+- **Ajustes manuales** (`inventory.adjust`) con motivo obligatorio. Una entrada con costo recalcula el **costo promedio ponderado** y el último costo (así se hace la carga inicial); sin costo, se valora al promedio actual. Las salidas usan el costo promedio.
+- **Stock negativo** no permitido por defecto (`ALLOW_NEGATIVE_STOCK`). Las unidades contables (unidad, paquete, caja, página) solo aceptan cantidades enteras.
+- Cada movimiento bloquea la fila del producto (`SELECT … FOR UPDATE`): dos operaciones simultáneas sobre el mismo producto se aplican en serie y nunca venden stock inexistente.
+- **Reposición:** productos activos con stock ≤ punto de reorden, los más urgentes primero, con cantidad sugerida = stock objetivo − stock actual.
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos
@@ -132,6 +141,7 @@ npm run dev
 | `backend/.env` | `REFRESH_TOKEN_EXPIRE_HOURS` | Vida de la sesión / refresh token (por defecto 12) |
 | `backend/.env` | `COOKIE_SECURE` | `true` en producción (cookie solo por HTTPS) |
 | `backend/.env` | `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES` | Bloqueo por intentos fallidos (por defecto 5 intentos, 15 min) |
+| `.env` / `backend/.env` | `ALLOW_NEGATIVE_STOCK` | Permite que las salidas dejen stock negativo (por defecto `false`) |
 | `frontend/.env` | `VITE_API_URL` | URL base de la API |
 
 Los archivos `.env` nunca se versionan; mantener actualizados los `.env.example`.
@@ -147,7 +157,7 @@ uv run alembic downgrade -1
 
 ## Pruebas y calidad
 
-Backend (requiere el contenedor `db` en marcha; usa la base `urantiad_test` y revierte cada test en una transacción):
+Backend (requiere el contenedor `db` en marcha; usa la base `urantiad_test` y revierte cada test en una transacción). Las pruebas de concurrencia (`test_inventory_concurrency.py`) usan dos sesiones reales: confirman sus propios datos y los eliminan al terminar.
 
 ```bash
 cd backend
