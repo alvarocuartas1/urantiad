@@ -5,6 +5,7 @@ import { ProductMovementsModal } from '@/components/inventory/ProductMovementsMo
 import { PriceHistoryModal } from '@/components/products/PriceHistoryModal'
 import { ProductFormModal } from '@/components/products/ProductFormModal'
 import { ProductsTable } from '@/components/products/ProductsTable'
+import { ProductSuppliersModal } from '@/components/suppliers/ProductSuppliersModal'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { FilterSelect, SearchInput } from '@/components/ui/ListFilters'
@@ -22,7 +23,9 @@ import { ACTIVE_FILTER_VALUES, type ActiveFilter } from '@/utils/filters'
 const PAGE_SIZE = 20
 
 type ModalState =
-  { type: 'create' } | { type: 'edit' | 'prices' | 'adjust' | 'movements'; product: Product } | null
+  | { type: 'create' }
+  | { type: 'edit' | 'prices' | 'adjust' | 'movements' | 'suppliers'; product: Product }
+  | null
 
 interface Filters {
   categoryId: string
@@ -44,6 +47,7 @@ function ProductsPage() {
   const showCosts = hasPermission(PERMISSIONS.productsViewCosts)
   const canAdjust = hasPermission(PERMISSIONS.inventoryAdjust)
   const canReadInventory = hasPermission(PERMISSIONS.inventoryRead)
+  const canReadSuppliers = hasPermission(PERMISSIONS.suppliersRead)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
@@ -158,6 +162,9 @@ function ProductsPage() {
               onMovements={
                 canReadInventory ? (product) => setModal({ type: 'movements', product }) : undefined
               }
+              onSuppliers={
+                canReadSuppliers ? (product) => setModal({ type: 'suppliers', product }) : undefined
+              }
             />
             <Pagination
               page={data.page}
@@ -178,6 +185,9 @@ function ProductsPage() {
       )}
       {modal?.type === 'movements' && (
         <ProductMovementsModal product={modal.product} onClose={closeModal} />
+      )}
+      {modal?.type === 'suppliers' && (
+        <ProductSuppliersModal product={modal.product} onClose={closeModal} />
       )}
     </section>
   )

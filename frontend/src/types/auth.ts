@@ -8,6 +8,8 @@ export const PERMISSIONS = {
   productsViewCosts: 'products.view_costs',
   inventoryRead: 'inventory.read',
   inventoryAdjust: 'inventory.adjust',
+  suppliersRead: 'suppliers.read',
+  suppliersManage: 'suppliers.manage',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

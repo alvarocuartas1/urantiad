@@ -75,6 +75,7 @@ docs/postman/      # colección "URANTIAD API"
 - **Productos por proveedor** (`supplier_products`): código del producto en el proveedor, precio de compra **sin IVA** (la misma base que el costo promedio), fecha del último precio (cambia solo cuando cambia el precio) y observaciones. Solo productos físicos activos y proveedores activos; la asociación sí se puede eliminar.
 - Consultas en ambos sentidos: `GET /suppliers/{id}/products` y `GET /products/{id}/suppliers` (el precio más reciente primero).
 - Permisos `suppliers.read` y `suppliers.manage` (administrador e inventario).
+- En el frontend: página `/proveedores` (búsqueda, estado, crear/editar/desactivar) con un modal de productos del proveedor (asociar con el selector compatible con lector de código de barras, editar código y precio, quitar), y la acción "Proveedores" en la tabla de productos.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

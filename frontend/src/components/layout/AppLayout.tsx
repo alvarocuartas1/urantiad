@@ -6,6 +6,7 @@ import {
   LogOut,
   Package,
   Tags,
+  Truck,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -38,6 +39,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Reposición',
     icon: ClipboardList,
     permission: PERMISSIONS.inventoryRead,
+  },
+  {
+    to: '/proveedores',
+    label: 'Proveedores',
+    icon: Truck,
+    permission: PERMISSIONS.suppliersRead,
   },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
 ]

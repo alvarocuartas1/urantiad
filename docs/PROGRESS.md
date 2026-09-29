@@ -10,7 +10,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 1 | Autenticación: usuarios, roles, permisos, JWT, login en frontend, rutas protegidas | Terminada |
 | 2 | Categorías y productos (incluye servicios, niveles de stock y alertas) | Terminada |
 | 3 | Inventario: movimientos, ajustes, historial, sección de reposición y sugerencia de compra | Terminada |
-| 4 | Proveedores y productos por proveedor | En curso (4a terminada) |
+| 4 | Proveedores y productos por proveedor | Terminada |
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Pendiente |
 | 6 | Clientes | Pendiente |
 | 7 | Cajas, apertura y movimientos de caja | Pendiente |
@@ -123,3 +123,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Endpoints `/suppliers` (listar con búsqueda y estado, obtener, crear, editar/desactivar), `/suppliers/{id}/products` (listar, asociar, editar, quitar) y `GET /products/{id}/suppliers`.
 - Dependencia nueva `email-validator` (reconstruir la imagen del backend). Colección Postman actualizada.
 - 170 tests backend.
+
+### Etapa 4b — Proveedores (frontend)
+- Página `/proveedores` (búsqueda por nombre, documento o contacto; filtro de estado; crear/editar/desactivar). Menú filtrado por `suppliers.read`.
+- `SupplierFormModal` (React Hook Form + Zod, documento normalizado como en el backend, documento duplicado junto al campo) y `SupplierProductsModal` con vistas internas (lista, asociar, editar, quitar) para no anidar modales. `SupplierProductsTable` compartida con `ProductSuppliersModal` (acción "Proveedores" en productos).
+- `ProductPicker` pasa a `components/products/` (compartido) y admite `autoFocus`.
+- 170 tests backend, 60 tests frontend.

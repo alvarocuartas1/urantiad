@@ -9,6 +9,7 @@ import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
 import ProductsPage from '@/pages/ProductsPage'
 import ReplenishmentPage from '@/pages/ReplenishmentPage'
+import SuppliersPage from '@/pages/SuppliersPage'
 import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
 
@@ -31,6 +32,9 @@ function App() {
               <Route element={<RequirePermission permission={PERMISSIONS.inventoryRead} />}>
                 <Route path="inventario/movimientos" element={<InventoryMovementsPage />} />
                 <Route path="inventario/reposicion" element={<ReplenishmentPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.suppliersRead} />}>
+                <Route path="proveedores" element={<SuppliersPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

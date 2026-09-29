@@ -24,7 +24,7 @@ import {
   type AdjustmentFormInput,
   type AdjustmentFormValues,
 } from '@/utils/inventory'
-import { ProductPicker } from './ProductPicker'
+import { ProductPicker } from '@/components/products/ProductPicker'
 
 /** API errors shown next to the quantity field. */
 const QUANTITY_ERRORS = ['INSUFFICIENT_STOCK', 'FRACTIONAL_QUANTITY']

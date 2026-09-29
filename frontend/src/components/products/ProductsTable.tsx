@@ -1,4 +1,4 @@
-import { ArrowLeftRight, History, Pencil, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeftRight, History, Pencil, SlidersHorizontal, Truck } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { Product } from '@/types/catalog'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
@@ -14,6 +14,8 @@ interface ProductsTableProps {
   /** Inventory actions; omitted when the user lacks the permission. Products only. */
   onAdjust?: (product: Product) => void
   onMovements?: (product: Product) => void
+  /** Omitted when the user lacks `suppliers.read`. Products only. */
+  onSuppliers?: (product: Product) => void
 }
 
 const HEADER_CLASS = 'px-4 py-3 font-semibold'
@@ -28,6 +30,7 @@ export function ProductsTable({
   onPriceHistory,
   onAdjust,
   onMovements,
+  onSuppliers,
 }: ProductsTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -120,6 +123,16 @@ export function ProductsTable({
                     >
                       <ArrowLeftRight aria-hidden="true" className="size-4" />
                       Movimientos
+                    </button>
+                  )}
+                  {product.type === 'product' && onSuppliers && (
+                    <button
+                      type="button"
+                      onClick={() => onSuppliers(product)}
+                      className={ACTION_CLASS}
+                    >
+                      <Truck aria-hidden="true" className="size-4" />
+                      Proveedores
                     </button>
                   )}
                   {product.type === 'product' && onAdjust && (

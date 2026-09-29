@@ -12,6 +12,8 @@ const RESULT_LIMIT = 8
 
 interface ProductPickerProps {
   onSelect: (product: Product) => void
+  /** Focus the search when shown after the modal opened (the modal focuses only on mount). */
+  autoFocus?: boolean
 }
 
 /** Exact SKU or barcode match, or the only result: what a barcode scan should pick. */
@@ -25,7 +27,7 @@ function pickScanned(products: Product[], term: string): Product | undefined {
  * Physical product search by name, SKU or barcode. Pressing Enter (as barcode scanners do)
  * searches immediately and selects the exact match, without waiting for the debounce.
  */
-export function ProductPicker({ onSelect }: ProductPickerProps) {
+export function ProductPicker({ onSelect, autoFocus = false }: ProductPickerProps) {
   const inputId = useId()
   const [term, setTerm] = useState('')
   const [scanMessage, setScanMessage] = useState<string | null>(null)
@@ -78,6 +80,7 @@ export function ProductPicker({ onSelect }: ProductPickerProps) {
           id={inputId}
           type="search"
           value={term}
+          autoFocus={autoFocus}
           autoComplete="off"
           placeholder="Escanee o busque por nombre, SKU o código de barras…"
           onChange={(event) => {
