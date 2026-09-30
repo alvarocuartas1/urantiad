@@ -40,9 +40,14 @@ const BUSINESS_TIME_ZONE = 'America/Bogota'
 // en-CA formats dates as "YYYY-MM-DD", the value of `<input type="date">`.
 const isoDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIME_ZONE })
 
+/** Today in the business time zone ("YYYY-MM-DD"). */
+export function businessToday(now: Date = new Date()): string {
+  return isoDateFormatter.format(now)
+}
+
 /** First day of the current month and today, in the business time zone ("YYYY-MM-DD"). */
 export function currentMonthDates(now: Date = new Date()): { from: string; to: string } {
-  const today = isoDateFormatter.format(now)
+  const today = businessToday(now)
   return { from: `${today.slice(0, 8)}01`, to: today }
 }
 

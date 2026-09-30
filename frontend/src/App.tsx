@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -24,6 +25,10 @@ import SuppliersPage from '@/pages/SuppliersPage'
 import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
 import { REPORT_PERMISSIONS } from '@/utils/report'
+import { STATISTICS_PERMISSIONS } from '@/utils/statistics'
+
+// Loaded on demand: its chart library never reaches the POS or the other pages.
+const StatisticsPage = lazy(() => import('@/pages/StatisticsPage'))
 
 function App() {
   return (
@@ -77,6 +82,18 @@ function App() {
               <Route element={<RequirePermission permission={REPORT_PERMISSIONS} />}>
                 <Route path="reportes" element={<ReportsPage />} />
                 <Route path="reportes/:tab" element={<ReportsPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={STATISTICS_PERMISSIONS} />}>
+                <Route
+                  path="estadisticas"
+                  element={
+                    <Suspense
+                      fallback={<p className="text-sm text-slate-600">Cargando estadísticas…</p>}
+                    >
+                      <StatisticsPage />
+                    </Suspense>
+                  }
+                />
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.auditRead} />}>
                 <Route path="auditoria" element={<AuditLogsPage />} />

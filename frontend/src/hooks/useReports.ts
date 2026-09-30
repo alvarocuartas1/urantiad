@@ -28,10 +28,11 @@ function sameGrouping<T>(groupBy: string) {
   }
 }
 
-export function useSalesReport(params: SalesReportParams) {
+export function useSalesReport(params: SalesReportParams, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['reports', 'sales', params],
     queryFn: () => getSalesReport(params),
+    enabled,
     ...reportOptions,
     placeholderData: sameGrouping(params.group_by),
   })

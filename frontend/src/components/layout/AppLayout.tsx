@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   ChartColumn,
+  ChartLine,
   ClipboardList,
   Contact,
   FileClock,
@@ -26,6 +27,7 @@ import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 import { meetsRequirement, PERMISSIONS, type PermissionRequirement } from '@/types/auth'
 import { REPORT_PERMISSIONS } from '@/utils/report'
+import { STATISTICS_PERMISSIONS } from '@/utils/statistics'
 
 interface NavItem {
   to: string
@@ -82,6 +84,12 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/cajas', label: 'Cajas', icon: Landmark, permission: PERMISSIONS.cashRegistersRead },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
   { to: '/reportes', label: 'Reportes', icon: ChartColumn, permission: REPORT_PERMISSIONS },
+  {
+    to: '/estadisticas',
+    label: 'Estadísticas',
+    icon: ChartLine,
+    permission: STATISTICS_PERMISSIONS,
+  },
   { to: '/auditoria', label: 'Auditoría', icon: FileClock, permission: PERMISSIONS.auditRead },
 ]
 
