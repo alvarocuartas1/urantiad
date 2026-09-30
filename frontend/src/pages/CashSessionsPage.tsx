@@ -1,11 +1,9 @@
 import { LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
-import { CashMovementsList } from '@/components/cash/CashMovementsList'
-import { CashSessionSummary } from '@/components/cash/CashSessionSummary'
+import { CashSessionDetailModal } from '@/components/cash/CashSessionDetailModal'
 import { CashSessionsTable } from '@/components/cash/CashSessionsTable'
 import { Alert } from '@/components/ui/Alert'
 import { DateFilter, FilterSelect } from '@/components/ui/ListFilters'
-import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { useCashRegisters, useCashSessions } from '@/hooks/useCash'
 import type { CashSession, CashSessionStatus } from '@/types/cash'
@@ -21,13 +19,20 @@ const REGISTERS_PARAMS = { page: 1, size: 100 }
 interface Filters {
   registerId: string
   status: CashSessionStatus | ''
+  difference: 'with' | 'without' | ''
   dateFrom: string
   dateTo: string
 }
 
-const INITIAL_FILTERS: Filters = { registerId: '', status: '', dateFrom: '', dateTo: '' }
+const INITIAL_FILTERS: Filters = {
+  registerId: '',
+  status: '',
+  difference: '',
+  dateFrom: '',
+  dateTo: '',
+}
 
-/** History of every user's cash sessions (supervision). */
+/** History of every user's cash sessions and their cash counts (supervision). */
 function CashSessionsPage() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
@@ -39,6 +44,7 @@ function CashSessionsPage() {
     size: PAGE_SIZE,
     cash_register_id: filters.registerId ? Number(filters.registerId) : undefined,
     status: filters.status || undefined,
+    has_difference: filters.difference ? filters.difference === 'with' : undefined,
     ...businessDayRange(filters.dateFrom, filters.dateTo),
   })
 
@@ -76,6 +82,15 @@ function CashSessionsPage() {
             </option>
           ))}
         </FilterSelect>
+        <FilterSelect
+          label="Arqueo"
+          value={filters.difference}
+          onChange={(value) => updateFilter('difference', value as Filters['difference'])}
+        >
+          <option value="">Todos los arqueos</option>
+          <option value="with">Con sobrante o faltante</option>
+          <option value="without">Sin diferencia</option>
+        </FilterSelect>
         <DateFilter
           label="Desde"
           value={filters.dateFrom}
@@ -110,14 +125,7 @@ function CashSessionsPage() {
           </>
         ))}
 
-      {viewing && (
-        <Modal title="Detalle de la apertura" size="lg" onClose={() => setViewing(null)}>
-          <div className="space-y-4">
-            <CashSessionSummary session={viewing} />
-            <CashMovementsList sessionId={viewing.id} />
-          </div>
-        </Modal>
-      )}
+      {viewing && <CashSessionDetailModal session={viewing} onClose={() => setViewing(null)} />}
     </section>
   )
 }

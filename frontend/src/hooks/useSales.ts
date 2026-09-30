@@ -7,7 +7,9 @@ import {
 } from '@tanstack/react-query'
 import { cancelSale, createSale, getSale, listPaymentMethods, listSales } from '@/services/sales'
 import type { Sale, SaleCreate, SaleListParams } from '@/types/sale'
+import { isApiErrorCode } from '@/utils/errors'
 import { refreshStockQueries } from './stockQueries'
+import { refreshCurrentCashSession } from './useCash'
 
 const salesKey = ['sales'] as const
 
@@ -50,6 +52,12 @@ export function useCreateSale() {
   return useMutation({
     mutationFn: (data: SaleCreate) => createSale(data),
     onSuccess: (sale) => applySaleChange(queryClient, sale),
+    onError: (error) => {
+      // The session was closed meanwhile (e.g. in another tab): the POS asks to open one.
+      if (isApiErrorCode(error, 'NO_OPEN_CASH_SESSION')) {
+        return refreshCurrentCashSession(queryClient)
+      }
+    },
   })
 }
 

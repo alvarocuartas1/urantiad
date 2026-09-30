@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { CashMovementType, CashSessionStatus, ManualCashMovementType } from '@/types/cash'
-import { toCents } from './decimal'
+import { fromCents, isDecimalInput, toCents } from './decimal'
 import { formatCurrency } from './format'
 import { decimalSchema, optionalTextSchema } from './validation'
 
@@ -79,3 +79,47 @@ export function buildCashMovementSchema(type: ManualCashMovementType, expectedCa
 type CashMovementSchema = ReturnType<typeof buildCashMovementSchema>
 export type CashMovementInput = z.input<CashMovementSchema>
 export type CashMovementValues = z.output<CashMovementSchema>
+
+export type CashDifferenceKind = 'balanced' | 'surplus' | 'shortage'
+
+export const CASH_DIFFERENCE_LABELS: Record<CashDifferenceKind, string> = {
+  balanced: 'Cuadrada',
+  surplus: 'Sobrante',
+  shortage: 'Faltante',
+}
+
+export function cashDifferenceKind(difference: string): CashDifferenceKind {
+  const cents = toCents(difference)
+  return cents === 0n ? 'balanced' : cents > 0n ? 'surplus' : 'shortage'
+}
+
+/** Counted − expected, as the backend computes it; `null` while the count is not a valid
+ * amount. */
+export function cashDifference(counted: string, expected: string): string | null {
+  if (!isDecimalInput(counted)) return null
+  return fromCents(toCents(counted) - toCents(expected))
+}
+
+/** Rules of `CashSessionClose`: with a surplus or shortage the notes are required (the
+ * backend checks it again against the expected cash of the locked session). */
+export function buildCloseSessionSchema(expectedCash: string) {
+  return z
+    .object({
+      counted_cash: decimalSchema,
+      closing_notes: optionalTextSchema(500, 'Las observaciones'),
+    })
+    .superRefine((values, context) => {
+      const difference = toCents(values.counted_cash) - toCents(expectedCash)
+      if (difference !== 0n && values.closing_notes === null) {
+        context.addIssue({
+          code: 'custom',
+          path: ['closing_notes'],
+          message: 'Explique el sobrante o faltante.',
+        })
+      }
+    })
+}
+
+type CloseSessionSchema = ReturnType<typeof buildCloseSessionSchema>
+export type CloseSessionInput = z.input<CloseSessionSchema>
+export type CloseSessionValues = z.output<CloseSessionSchema>

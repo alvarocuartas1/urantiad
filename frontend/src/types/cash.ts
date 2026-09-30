@@ -1,3 +1,5 @@
+import type { PaymentMethod } from './sale'
+
 interface UserSummary {
   id: number
   full_name: string
@@ -53,6 +55,19 @@ export interface CashSummary {
   expected_cash: string
 }
 
+/** Cash count and closing of a session. */
+export interface CashSessionClosing {
+  closed_at: string
+  /** The owner, or a supervisor closing a session someone left open. */
+  closed_by: UserSummary
+  /** Expected cash frozen when it was closed. */
+  expected_cash: string
+  counted_cash: string
+  /** Counted − expected: positive = surplus, negative = shortage. */
+  difference: string
+  closing_notes: string | null
+}
+
 export interface CashSession {
   id: number
   cash_register: CashRegisterSummary
@@ -62,6 +77,8 @@ export interface CashSession {
   opening_notes: string | null
   opened_at: string
   summary: CashSummary
+  /** `null` while the session is open. */
+  closing: CashSessionClosing | null
 }
 
 export interface CashSessionOpen {
@@ -75,6 +92,8 @@ export interface CashSessionListParams {
   size: number
   cash_register_id?: number
   status?: CashSessionStatus
+  /** `true`: closed with a surplus or shortage; `false`: the rest. */
+  has_difference?: boolean
   date_from?: string
   date_to?: string
 }
@@ -104,4 +123,24 @@ export interface CashMovementCreate {
 export interface CashMovementResult {
   movement: CashMovement
   session: CashSession
+}
+
+export interface CashSessionClose {
+  counted_cash: string
+  /** The expected cash the user saw: rejected (`CASH_EXPECTED_CHANGED`) if it changed. */
+  expected_cash: string
+  closing_notes: string | null
+}
+
+export interface PaymentMethodTotal {
+  payment_method: PaymentMethod
+  payments_count: number
+  total: string
+}
+
+/** Sales of a session; for a closed one, as they were when it was closed. */
+export interface CashSessionSalesSummary {
+  sales_count: number
+  total_sales: string
+  by_method: PaymentMethodTotal[]
 }

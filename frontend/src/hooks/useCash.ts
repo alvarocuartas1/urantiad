@@ -6,8 +6,11 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 import {
+  closeCashSession,
   createCashMovement,
   createCashRegister,
+  getCashSession,
+  getCashSessionSalesSummary,
   getCurrentCashSession,
   listCashMovements,
   listCashRegisters,
@@ -21,6 +24,7 @@ import type {
   CashRegisterListParams,
   CashRegisterUpdate,
   CashSession,
+  CashSessionClose,
   CashSessionListParams,
   CashSessionOpen,
 } from '@/types/cash'
@@ -91,6 +95,48 @@ export function useCashSessions(params: CashSessionListParams) {
     queryKey: [...cashKey, 'sessions', params],
     queryFn: () => listCashSessions(params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useCashSession(id: number, initialSession?: CashSession) {
+  return useQuery({
+    queryKey: [...cashKey, 'session', id],
+    queryFn: () => getCashSession(id),
+    placeholderData: initialSession,
+  })
+}
+
+export function useCashSessionSalesSummary(sessionId: number) {
+  return useQuery({
+    queryKey: [...cashKey, 'sales-summary', sessionId],
+    queryFn: () => getCashSessionSalesSummary(sessionId),
+  })
+}
+
+/** Reload the user's open session: e.g. a sale found it closed in another tab. */
+export function refreshCurrentCashSession(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: currentSessionKey })
+}
+
+/** A supervisor may close another user's session, so the current one is cleared only when it
+ * is the closed session. If the expected cash changed meanwhile, every cash query reloads to
+ * show the new figures. */
+export function useCloseCashSession(sessionId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: CashSessionClose) => closeCashSession(sessionId, data),
+    onSuccess: (session) => {
+      if (queryClient.getQueryData<CashSession | null>(currentSessionKey)?.id === session.id) {
+        queryClient.setQueryData(currentSessionKey, null)
+      }
+      queryClient.setQueryData([...cashKey, 'session', session.id], session)
+      return queryClient.invalidateQueries({
+        queryKey: cashKey,
+        predicate: (query) =>
+          query.queryKey[1] !== currentSessionKey[1] && query.queryKey[1] !== 'session',
+      })
+    },
+    onError: () => queryClient.invalidateQueries({ queryKey: cashKey }),
   })
 }
 

@@ -103,9 +103,9 @@ docs/postman/      # colección "URANTIAD API"
 - **Arqueo y cierre**: se digita el efectivo contado y se guardan el esperado (fijado al cerrar, con la apertura bloqueada), el contado y la **diferencia = contado − esperado** (positiva = sobrante, negativa = faltante). Con diferencia, las observaciones son obligatorias. Si el esperado cambió mientras se contaba (por ejemplo, por una anulación), el cierre se rechaza para revisar de nuevo. El cierre es definitivo: la apertura ya no admite ventas ni movimientos y la caja queda libre. El resumen del cierre incluye las ventas por método de pago (solo el efectivo entra al conteo).
 - Permisos `cash_registers.read` y `cash.operate` (administrador y cajero), `cash_registers.manage` y `cash.supervise` (administrador; ver las aperturas de todos y cerrar las que alguien dejó abiertas).
 - En el frontend:
-  - `/caja` "Mi caja": abrir una caja (las ocupadas aparecen deshabilitadas con quién las tiene), resumen con el efectivo esperado, registrar ingresos y retiros, y lista de movimientos.
+  - `/caja` "Mi caja": abrir una caja (las ocupadas aparecen deshabilitadas con quién las tiene), resumen con el efectivo esperado, registrar ingresos y retiros, lista de movimientos y **cerrar caja**: desglose del esperado, ventas por método de pago, efectivo contado con la diferencia en vivo ("Cuadrada", "Sobrante" o "Faltante") y resultado del cierre.
   - `/cajas`: listado con quién tiene abierta cada caja; crear, editar y desactivar (administrador).
-  - `/caja/aperturas`: historial de aperturas de todos los usuarios, con filtros por caja, estado y fechas, y detalle con movimientos (administrador).
+  - `/caja/aperturas`: historial de aperturas de todos los usuarios, con contado y arqueo, filtros por caja, estado, arqueo (con sobrante o faltante) y fechas, y detalle con el cierre, las ventas por método y los movimientos; desde el detalle se cierra una apertura que alguien dejó abierta (administrador).
 
 ### Ventas
 

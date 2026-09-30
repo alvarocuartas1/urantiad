@@ -2,7 +2,9 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApiError } from '@/services/apiClient'
 import {
+  closeCashSession,
   createCashMovement,
+  getCashSessionSalesSummary,
   getCurrentCashSession,
   listCashMovements,
   listCashRegisters,
@@ -51,6 +53,7 @@ const SESSION: CashSession = {
     total_cash_cancellations: '0.00',
     expected_cash: '115000.00',
   },
+  closing: null,
 }
 
 const page = <T,>(items: T[]) => ({ items, total: items.length, page: 1, size: 20 })
@@ -64,6 +67,22 @@ describe('MyCashPage', () => {
     vi.clearAllMocks()
     vi.mocked(listCashRegisters).mockResolvedValue(page([MAIN, BUSY]))
     vi.mocked(listCashMovements).mockResolvedValue(page([]))
+    vi.mocked(getCashSessionSalesSummary).mockResolvedValue({
+      sales_count: 2,
+      total_sales: '30000.00',
+      by_method: [
+        {
+          payment_method: { id: 1, code: 'cash', name: 'Efectivo', is_cash: true },
+          payments_count: 1,
+          total: '10000.00',
+        },
+        {
+          payment_method: { id: 2, code: 'nequi', name: 'Nequi', is_cash: false },
+          payments_count: 1,
+          total: '20000.00',
+        },
+      ],
+    })
   })
 
   it('opens a free register when the user has no session', async () => {
@@ -150,5 +169,73 @@ describe('MyCashPage', () => {
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Efectivo esperado').parentElement).toHaveTextContent('125.000')
+  })
+
+  it('closes the register with a shortage explained in the notes', async () => {
+    vi.mocked(getCurrentCashSession).mockResolvedValue(SESSION)
+    vi.mocked(closeCashSession).mockResolvedValue({
+      ...SESSION,
+      status: 'closed',
+      closing: {
+        closed_at: '2026-09-29T22:00:00Z',
+        closed_by: SESSION.user,
+        expected_cash: '115000.00',
+        counted_cash: '114000.00',
+        difference: '-1000.00',
+        closing_notes: 'Cambio mal dado',
+      },
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Cerrar caja' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/no entra al conteo/)).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByLabelText('Efectivo contado'), '115000')
+    expect(within(dialog).getByText('Cuadrada')).toBeInTheDocument()
+    await userEvent.clear(within(dialog).getByLabelText('Efectivo contado'))
+    await userEvent.type(within(dialog).getByLabelText('Efectivo contado'), '114000')
+    expect(within(dialog).getByText(/Faltante/)).toHaveTextContent('Faltante $ 1.000')
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar caja' }))
+    expect(await within(dialog).findByText('Explique el sobrante o faltante.')).toBeInTheDocument()
+    expect(closeCashSession).not.toHaveBeenCalled()
+
+    await userEvent.type(within(dialog).getByLabelText('Observaciones'), 'Cambio mal dado')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar caja' }))
+
+    expect(closeCashSession).toHaveBeenCalledWith(3, {
+      counted_cash: '114000',
+      expected_cash: '115000.00',
+      closing_notes: 'Cambio mal dado',
+    })
+    const result = await screen.findByRole('dialog', { name: 'Caja cerrada' })
+    expect(within(result).getByText(/Faltante/)).toBeInTheDocument()
+    expect(within(result).getByText(/Cambio mal dado/)).toBeInTheDocument()
+    await userEvent.click(within(result).getByRole('button', { name: 'Aceptar' }))
+    // The closed session is no longer the current one: the page offers to open a register.
+    expect(await screen.findByRole('button', { name: 'Abrir caja' })).toBeInTheDocument()
+    expect(getCurrentCashSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads the expected cash when it changed while counting', async () => {
+    const updated = { ...SESSION, summary: { ...SESSION.summary, expected_cash: '117000.00' } }
+    vi.mocked(getCurrentCashSession).mockResolvedValueOnce(SESSION).mockResolvedValue(updated)
+    vi.mocked(closeCashSession).mockRejectedValue(
+      new ApiError(409, {
+        detail: 'El efectivo esperado cambió a $117.000. Revise el conteo.',
+        code: 'CASH_EXPECTED_CHANGED',
+      }),
+    )
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Cerrar caja' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Efectivo contado'), '115000')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar caja' }))
+
+    expect(await within(dialog).findByText(/El efectivo esperado cambió/)).toBeInTheDocument()
+    // The new figure replaces the old one and the same count now shows the shortage.
+    expect(await within(dialog).findByText(/Faltante/)).toHaveTextContent('Faltante $ 2.000')
+    expect(getCurrentCashSession).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,11 +1,24 @@
-import { ArrowDown, ArrowUp, Lock, LockOpen } from 'lucide-react'
-import { StatusBadge } from '@/components/ui/StatusBadge'
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleCheck,
+  Lock,
+  LockOpen,
+  TrendingDown,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react'
+import { StatusBadge, type StatusTone } from '@/components/ui/StatusBadge'
 import type { CashMovementType, CashSessionStatus } from '@/types/cash'
 import {
+  CASH_DIFFERENCE_LABELS,
   CASH_MOVEMENT_TYPE_LABELS,
   CASH_SESSION_STATUS_LABELS,
+  cashDifferenceKind,
   isInboundCashMovement,
+  type CashDifferenceKind,
 } from '@/utils/cash'
+import { formatCurrency } from '@/utils/format'
 
 /** Session status with color + icon + text: open lock in green, closed lock in gray. */
 export function CashSessionStatusBadge({ status }: { status: CashSessionStatus }) {
@@ -30,6 +43,34 @@ export function CashMovementTypeBadge({ type }: { type: CashMovementType }) {
       tone={inbound ? 'ok' : 'neutral'}
       icon={inbound ? ArrowUp : ArrowDown}
       label={CASH_MOVEMENT_TYPE_LABELS[type]}
+    />
+  )
+}
+
+const DIFFERENCE_STYLES: Record<CashDifferenceKind, { tone: StatusTone; icon: LucideIcon }> = {
+  balanced: { tone: 'ok', icon: CircleCheck },
+  surplus: { tone: 'warning', icon: TrendingUp },
+  shortage: { tone: 'error', icon: TrendingDown },
+}
+
+/** Result of a cash count with color + icon + text, and the amount when it is not balanced:
+ * "Cuadrada", "Sobrante $500", "Faltante $1.000". */
+export function CashDifferenceBadge({
+  difference,
+  size = 'sm',
+}: {
+  difference: string
+  size?: 'sm' | 'md'
+}) {
+  const kind = cashDifferenceKind(difference)
+  const { tone, icon } = DIFFERENCE_STYLES[kind]
+  const amount = kind === 'balanced' ? '' : ` ${formatCurrency(difference.replace('-', ''))}`
+  return (
+    <StatusBadge
+      size={size}
+      tone={tone}
+      icon={icon}
+      label={`${CASH_DIFFERENCE_LABELS[kind]}${amount}`}
     />
   )
 }

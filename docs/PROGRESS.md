@@ -15,7 +15,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 6 | Clientes | Terminada |
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
-| 9 | Arqueo y cierre de caja | En curso (9a terminada) |
+| 9 | Arqueo y cierre de caja | Terminada |
 | 10 | Auditoría | Pendiente |
 | 11 | Reportes | Pendiente |
 | 12 | Dashboard | Pendiente |
@@ -87,6 +87,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Los cambios hechos por otro usuario (p. ej. una anulación del administrador) aparecen en la pestaña del cajero al recargar o cuando vence el `staleTime` global de 30 s (política de toda la app).
 - Cierre de caja: columnas en `cash_sessions` (1:1, sin tabla aparte; arqueos parciales serían una tabla futura). CHECKs: campos de cierre presentes si y solo si `closed`, `counted_cash >= 0`, `difference = counted_cash − expected_cash`. `expected_cash` queda fijo al cerrar, calculado con la apertura bloqueada: ventas, movimientos y reintegros de anulación esperan o reciben `NO_OPEN_CASH_SESSION`/`CASH_SESSION_CLOSED`. El cliente envía el esperado que vio (409 `CASH_EXPECTED_CHANGED` si cambió). Observaciones obligatorias con diferencia (422 `CLOSING_NOTES_REQUIRED`). El cierre es definitivo. `cash.operate` cierra la propia; `cash.supervise` también las ajenas (`closed_by`). `closed_at` con `now()`.
 - Resumen de ventas de una apertura (`sale_service.session_sales_summary`): ventas `completed` más las anuladas **después** del cierre (`cancelled_at > closed_at`), para que muestre lo que había al cerrar. En tests, `now()` no avanza entre peticiones (una sola transacción): se retrasa `closed_at` a mano.
+- Frontend de cierre: `CloseSessionModal` (RHF + Zod, diferencia en vivo en centavos con `cashDifference`) envía el esperado que muestra; con error se recargan todas las consultas de caja y el modal muestra el nuevo esperado. Usa `mutateAsync`: cerrar la apertura actual la quita de la caché y desmonta el modal, y `mutate` no ejecuta sus callbacks tras desmontarse. `CashDifferenceBadge` (Cuadrada/Sobrante/Faltante, color + icono + texto). El detalle de apertura del supervisor recarga la apertura (`useCashSession`) y alterna con el modal de cierre (sin anidar modales). El POS recarga la apertura ante `NO_OPEN_CASH_SESSION`.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -214,3 +215,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Tests existentes que marcaban aperturas cerradas usan `mark_closed` (el CHECK exige los datos del cierre).
 - Frontend sin cambios (llega en la 9b).
 - 360 tests backend.
+
+### Etapa 9b — Arqueo y cierre de caja (frontend)
+- "Mi caja": botón "Cerrar caja" con `CloseSessionModal` (desglose del esperado, `CashSalesByMethod`, efectivo contado con `CashDifferenceBadge` en vivo, observaciones obligatorias con diferencia, aviso de cierre definitivo) y modal "Caja cerrada" con el resultado; luego ofrece abrir caja.
+- "Aperturas de caja": columnas contado y arqueo, filtro "Arqueo" (`has_difference`), `CashSessionDetailModal` con el cierre, ventas por método, movimientos y "Cerrar caja" para aperturas abiertas. `CashSessionSummary` muestra el cierre.
+- POS: si la caja se cerró en otra pestaña, la venta recarga la apertura y pide abrir caja.
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: ventas en efectivo y mixta, cierre con faltante (observaciones exigidas), anulación del admin mientras el cajero contaba (409, nuevo esperado y sobrante en vivo, recuento cuadrado), el supervisor cierra una apertura olvidada, tabla y filtro por diferencia. Corregidos: el resultado del cierre no aparecía (callbacks de `mutate` perdidos al desmontarse el modal) e insignia de arqueo partida en dos líneas.
+- 360 tests backend, 111 tests frontend.

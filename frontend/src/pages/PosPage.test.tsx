@@ -1,7 +1,8 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ApiError } from '@/services/apiClient'
 import { getCurrentCashSession } from '@/services/cash'
-import { listProducts } from '@/services/products'
+import { getProduct, listProducts } from '@/services/products'
 import { createSale, listPaymentMethods } from '@/services/sales'
 import { adminUser, buildAuth, renderWithProviders } from '@/test/renderWithProviders'
 import type { CashSession } from '@/types/cash'
@@ -37,6 +38,7 @@ const SESSION: CashSession = {
     total_cash_cancellations: '0.00',
     expected_cash: '100000.00',
   },
+  closing: null,
 }
 
 const WATER: Product = {
@@ -128,6 +130,26 @@ describe('PosPage', () => {
 
     await userEvent.click(within(done).getByRole('button', { name: 'Nueva venta' }))
     expect(screen.queryByLabelText('Cantidad de Agua 600 ml')).not.toBeInTheDocument()
+  })
+
+  it('asks to open a register when the session was closed in another tab', async () => {
+    vi.mocked(getCurrentCashSession).mockResolvedValueOnce(SESSION).mockResolvedValue(null)
+    vi.mocked(getProduct).mockResolvedValue(WATER)
+    vi.mocked(createSale).mockRejectedValue(
+      new ApiError(409, {
+        detail: 'Debe abrir una caja antes de registrar ventas.',
+        code: 'NO_OPEN_CASH_SESSION',
+      }),
+    )
+    renderPage()
+    await scan('AGUA-1')
+
+    await userEvent.keyboard('{F2}')
+    const dialog = await screen.findByRole('dialog', { name: /Cobrar/ })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar venta' }))
+
+    expect(await screen.findByRole('link', { name: 'Ir a Mi caja' })).toBeInTheDocument()
+    expect(getCurrentCashSession).toHaveBeenCalledTimes(2)
   })
 
   it('does not charge while the payments do not add up to the total', async () => {
