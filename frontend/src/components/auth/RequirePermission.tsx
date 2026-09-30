@@ -1,13 +1,14 @@
 import { ShieldAlert } from 'lucide-react'
 import { Outlet } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
-import type { PermissionCode } from '@/types/auth'
+import { meetsRequirement, type PermissionRequirement } from '@/types/auth'
 
-/** Renders child routes only if the user has `permission`. The backend enforces it too. */
-export function RequirePermission({ permission }: { permission: PermissionCode }) {
+/** Renders child routes only if the user has `permission` (or any of a list). The backend
+ * enforces it too. */
+export function RequirePermission({ permission }: { permission: PermissionRequirement }) {
   const { hasPermission } = useAuth()
 
-  if (!hasPermission(permission)) {
+  if (!meetsRequirement(permission, hasPermission)) {
     return (
       <div
         role="alert"

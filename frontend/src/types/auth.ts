@@ -28,6 +28,18 @@ export const PERMISSIONS = {
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
 
+/** One permission, or a list of which any one is enough (e.g. a section with several tabs). */
+export type PermissionRequirement = PermissionCode | readonly PermissionCode[]
+
+export function meetsRequirement(
+  requirement: PermissionRequirement,
+  hasPermission: (permission: PermissionCode) => boolean,
+): boolean {
+  return typeof requirement === 'string'
+    ? hasPermission(requirement)
+    : requirement.some(hasPermission)
+}
+
 export interface RoleSummary {
   id: number
   code: string

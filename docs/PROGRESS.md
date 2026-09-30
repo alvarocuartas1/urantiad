@@ -17,7 +17,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
 | 9 | Arqueo y cierre de caja | Terminada |
 | 10 | Auditoría | Terminada |
-| 11 | Reportes | En curso (11a terminada) |
+| 11 | Reportes | Terminada |
 | 12 | Dashboard | Pendiente |
 | 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
 
@@ -102,6 +102,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `cash_service.record_cash_movement` acepta `expected_cash` ya calculado con la apertura bloqueada (evita repetir la consulta en retiros manuales).
 - Reportes: sin tablas; `report_service` hace una consulta agrupada paginada (`paginate_rows`) y una de resumen con los mismos filtros (agregados con `FILTER`), sin consultas por fila. Respuesta `ReportPage` = `Page` + `summary`. Permisos reutilizados del área (`sales.read_all`, `purchases.read`, `inventory.read`, `cash.supervise`): un reporte no muestra más que los listados; costos y márgenes solo con `products.view_costs`. Días en `BUSINESS_TIMEZONE` (`America/Bogota`) con `timezone()` de PostgreSQL. Orden: días cronológicos; los demás grupos por total descendente (inventario y caja por nombre).
 - Reporte de ventas sobre `sale_items` (la suma de las líneas = total de la venta, así todas las agrupaciones suman lo mismo); solo `completed` (estado actual: una venta anulada después no suma y se muestra aparte), a diferencia del resumen de cierre de caja. Por método de pago se usa `sale_payments` y no admite filtro por producto o categoría (422 `REPORT_FILTER_NOT_SUPPORTED`). Ticket promedio nulo con filtros de línea. Compras por `confirmed_at`, solo confirmadas (anuladas aparte). Inventario: físicos activos; el stock negativo no resta valor. Caja: sobrantes y faltantes (positivo) por separado; esperado y contado solo de cerradas.
+- Frontend de reportes: `/reportes/:tab` (`ventas`, `compras`, `inventario`, `caja`); `/reportes` o una pestaña sin permiso redirige a la primera permitida. Permisos "cualquiera de" con `PermissionRequirement` + `meetsRequirement` (ruta y menú). Hooks con `staleTime: 0` (como auditoría) y datos previos **solo con la misma agrupación** (`sameGrouping`): filas de otra agrupación no encajan en las columnas nuevas (un id formateado como fecha rompía la página). Periodo por defecto: mes en curso en hora de Bogotá (`currentMonthDates`). Por método de pago se ocultan y limpian los filtros de categoría y producto. Costos y márgenes solo con `products.view_costs`. `ReportResults` + `ReportTable` genéricos con columnas declarativas (`columns.tsx`).
 
 ## Registro de etapas terminadas
 
@@ -255,3 +256,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Configuración `BUSINESS_TIMEZONE` (validada al arrancar). `query.paginate_rows` para consultas de varias columnas. Colección Postman y README actualizados.
 - Frontend sin cambios (llega en la 11b).
 - 401 tests backend.
+
+### Etapa 11b — Reportes (frontend)
+- Página `/reportes` "Reportes" (menú visible con cualquiera de los cuatro permisos) con pestañas Ventas, Compras, Inventario y Caja según permisos. Cada una: agrupación, periodo (mes en curso por defecto), filtros (cajero, caja, categoría, proveedor, producto con `ProductFilter`), tarjetas de resumen (`SummaryCards`) y tabla agrupada paginada (`ReportResults`/`ReportTable`). Inventario enlaza a productos, reposición y movimientos; caja muestra la diferencia con `CashDifferenceBadge`.
+- `types/report.ts`, `services/reports.ts`, `hooks/useReports.ts`, `utils/report.ts`; `RequirePermission` y el menú aceptan una lista de permisos (cualquiera). `useCashRegisters` y `useSuppliers` aceptan `enabled`.
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: ventas, compras, anulación y cierre con faltante por API; totales, margen, ticket promedio, anuladas aparte, agrupaciones por producto y método de pago, filtro por producto, compras, inventario y caja; móvil sin scroll horizontal; bodega solo ve Compras e Inventario; cajero sin acceso. Corregidos: cambiar de agrupación mostraba las filas anteriores con las columnas nuevas (la página fallaba al formatear un id como fecha), pestaña activa oculta en móvil y tabla de caja más ancha que la pantalla.
+- 401 tests backend, 130 tests frontend.

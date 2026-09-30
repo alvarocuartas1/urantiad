@@ -16,12 +16,14 @@ import PosPage from '@/pages/PosPage'
 import ProductsPage from '@/pages/ProductsPage'
 import PurchasePage from '@/pages/PurchasePage'
 import PurchasesPage from '@/pages/PurchasesPage'
+import ReportsPage from '@/pages/ReportsPage'
 import ReplenishmentPage from '@/pages/ReplenishmentPage'
 import SalePage from '@/pages/SalePage'
 import SalesPage from '@/pages/SalesPage'
 import SuppliersPage from '@/pages/SuppliersPage'
 import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
+import { REPORT_PERMISSIONS } from '@/utils/report'
 
 function App() {
   return (
@@ -71,6 +73,10 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.cashRegistersRead} />}>
                 <Route path="cajas" element={<CashRegistersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={REPORT_PERMISSIONS} />}>
+                <Route path="reportes" element={<ReportsPage />} />
+                <Route path="reportes/:tab" element={<ReportsPage />} />
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.auditRead} />}>
                 <Route path="auditoria" element={<AuditLogsPage />} />

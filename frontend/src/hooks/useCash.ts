@@ -45,11 +45,12 @@ function applySessionChange(queryClient: QueryClient, session: CashSession) {
   })
 }
 
-export function useCashRegisters(params: CashRegisterListParams) {
+export function useCashRegisters(params: CashRegisterListParams, { enabled = true } = {}) {
   return useQuery({
     queryKey: [...registersKey, params],
     queryFn: () => listCashRegisters(params),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

@@ -22,11 +22,12 @@ const suppliersKey = ['suppliers'] as const
 // Links are listed from both sides: supplier → products and product → suppliers.
 const supplierProductsKey = ['supplier-products'] as const
 
-export function useSuppliers(params: SupplierListParams) {
+export function useSuppliers(params: SupplierListParams, { enabled = true } = {}) {
   return useQuery({
     queryKey: [...suppliersKey, params],
     queryFn: () => listSuppliers(params),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

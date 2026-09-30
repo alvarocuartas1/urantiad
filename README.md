@@ -140,6 +140,7 @@ docs/postman/      # colección "URANTIAD API"
 - `GET /api/v1/reports/inventory` (`inventory.read`): productos físicos activos por nivel de stock y valor del inventario al costo promedio, por categoría.
 - `GET /api/v1/reports/cash` (`cash.supervise`): aperturas por día, caja o cajero: movimientos, esperado y contado, sobrantes y faltantes por separado.
 - Los permisos son los del listado de cada área: un reporte no muestra nada que ese usuario no pueda consultar ya.
+- En el frontend, `/reportes` "Reportes" con una pestaña por área (solo las permitidas): agrupación, periodo (por defecto el mes en curso), filtros de cajero, caja, categoría, proveedor y producto, tarjetas de resumen y la tabla agrupada y paginada. La pestaña de inventario enlaza a productos, reposición y movimientos.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

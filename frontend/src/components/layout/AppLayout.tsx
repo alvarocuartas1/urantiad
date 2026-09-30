@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  ChartColumn,
   ClipboardList,
   Contact,
   FileClock,
@@ -23,13 +24,14 @@ import { NavLink, Outlet } from 'react-router'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
-import { PERMISSIONS, type PermissionCode } from '@/types/auth'
+import { meetsRequirement, PERMISSIONS, type PermissionRequirement } from '@/types/auth'
+import { REPORT_PERMISSIONS } from '@/utils/report'
 
 interface NavItem {
   to: string
   label: string
   icon: LucideIcon
-  permission?: PermissionCode
+  permission?: PermissionRequirement
   /** Highlight only on this exact path (not on nested pages such as `/caja/aperturas`). */
   end?: boolean
 }
@@ -79,6 +81,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: '/cajas', label: 'Cajas', icon: Landmark, permission: PERMISSIONS.cashRegistersRead },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
+  { to: '/reportes', label: 'Reportes', icon: ChartColumn, permission: REPORT_PERMISSIONS },
   { to: '/auditoria', label: 'Auditoría', icon: FileClock, permission: PERMISSIONS.auditRead },
 ]
 
@@ -86,7 +89,7 @@ export function AppLayout() {
   const { user, logout, hasPermission } = useAuth()
   const [changingPassword, setChangingPassword] = useState(false)
   const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.permission || hasPermission(item.permission),
+    (item) => !item.permission || meetsRequirement(item.permission, hasPermission),
   )
 
   return (
