@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, PostgresDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -28,6 +29,18 @@ class Settings(BaseSettings):
 
     # Inventory: whether outgoing movements may leave a product with negative stock.
     allow_negative_stock: bool = False
+
+    # Reports: days are grouped in the business's local time (dates are stored in UTC).
+    business_timezone: str = "America/Bogota"
+
+    @field_validator("business_timezone")
+    @classmethod
+    def check_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"Zona horaria desconocida: {value}") from exc
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod

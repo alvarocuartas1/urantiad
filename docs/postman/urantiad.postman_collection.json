@@ -2493,6 +2493,266 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Reporte de ventas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/sales?group_by=day&page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "sales"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "day",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "cash_register_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Permiso sales.read_all (administrador). Ventas completadas agrupadas por group_by: day (hora local, BUSINESS_TIMEZONE), user, cash_register, product, category o payment_method. Devuelve items (grupos paginados) y summary (totales del periodo, ticket promedio y ventas anuladas aparte). Costo, margen bruto y margen % solo con products.view_costs (si no, null). Por payment_method no se admite product_id ni category_id (422 REPORT_FILTER_NOT_SUPPORTED)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte de compras",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/purchases?group_by=supplier&page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "purchases"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "supplier",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "supplier_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Permiso purchases.read (administrador, inventario). Compras confirmadas por fecha de confirmación, agrupadas por supplier, product, category o day. Borradores excluidos; anuladas contadas aparte en summary. Montos sin IVA (subtotal) y con IVA (total)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte de inventario",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/inventory?page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "inventory"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Permiso inventory.read (administrador, inventario). Estado actual de los productos físicos activos por categoría: cantidad por nivel de stock (agotado, crítico, bajo, normal) y valor del inventario (stock sin negativos x costo promedio; null sin products.view_costs). El detalle está en /products, /inventory/replenishment y /inventory/movements."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte de caja",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/cash?group_by=day&page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "cash"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "day",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "cash_register_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Permiso cash.supervise (administrador). Aperturas por fecha de apertura agrupadas por day, cash_register o user: dinero inicial, ingresos, retiros, ventas y reintegros en efectivo, esperado y contado (solo cerradas), sobrantes, faltantes (en positivo), diferencia neta y aperturas con diferencia."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -17,7 +17,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
 | 9 | Arqueo y cierre de caja | Terminada |
 | 10 | Auditoría | Terminada |
-| 11 | Reportes | Pendiente |
+| 11 | Reportes | En curso (11a terminada) |
 | 12 | Dashboard | Pendiente |
 | 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
 
@@ -100,6 +100,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Frontend de auditoría: `useAuditLogs` con `staleTime: 0` (casi toda mutación agrega registros; recargar al abrir la página evita invalidarla desde todas). `utils/audit.ts` concentra etiquetas de acciones y campos, formato de valores (el `status` según la entidad) y el resumen por acción; los campos se ordenan por su declaración ahí, porque JSONB reordena las claves. Las filas de descartes de compra no enlazan (el borrador ya no existe).
 - Tablas: la columna de acciones lleva encabezado visible "Acciones". Un `sr-only` (posición absoluta) dentro de un contenedor con `overflow-x-auto` no posicionado escapa del recorte y crea scroll horizontal en la página.
 - `cash_service.record_cash_movement` acepta `expected_cash` ya calculado con la apertura bloqueada (evita repetir la consulta en retiros manuales).
+- Reportes: sin tablas; `report_service` hace una consulta agrupada paginada (`paginate_rows`) y una de resumen con los mismos filtros (agregados con `FILTER`), sin consultas por fila. Respuesta `ReportPage` = `Page` + `summary`. Permisos reutilizados del área (`sales.read_all`, `purchases.read`, `inventory.read`, `cash.supervise`): un reporte no muestra más que los listados; costos y márgenes solo con `products.view_costs`. Días en `BUSINESS_TIMEZONE` (`America/Bogota`) con `timezone()` de PostgreSQL. Orden: días cronológicos; los demás grupos por total descendente (inventario y caja por nombre).
+- Reporte de ventas sobre `sale_items` (la suma de las líneas = total de la venta, así todas las agrupaciones suman lo mismo); solo `completed` (estado actual: una venta anulada después no suma y se muestra aparte), a diferencia del resumen de cierre de caja. Por método de pago se usa `sale_payments` y no admite filtro por producto o categoría (422 `REPORT_FILTER_NOT_SUPPORTED`). Ticket promedio nulo con filtros de línea. Compras por `confirmed_at`, solo confirmadas (anuladas aparte). Inventario: físicos activos; el stock negativo no resta valor. Caja: sobrantes y faltantes (positivo) por separado; esperado y contado solo de cerradas.
 
 ## Registro de etapas terminadas
 
@@ -247,3 +249,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Backend: el retiro manual reutiliza el esperado ya calculado (sin consulta repetida).
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: datos de todas las áreas por API; listado, orden, "Sistema" para `create-admin`, detalle, filtros por área, usuario y búsqueda, enlace a la venta, cambio propio visible al volver, móvil sin scroll horizontal y cajero sin acceso. Corregidos: scroll horizontal en móvil (`sr-only` en el encabezado) y orden arbitrario de los campos (JSONB).
 - 380 tests backend, 122 tests frontend.
+
+### Etapa 11a — Reportes (backend)
+- Endpoints `GET /reports/sales` (por día, cajero, caja, producto, categoría o método de pago), `/reports/purchases` (por proveedor, producto, categoría o día), `/reports/inventory` (por categoría) y `/reports/cash` (por día, caja o cajero), con filtros, grupos paginados y resumen. Sin cambios de base de datos ni permisos nuevos.
+- Configuración `BUSINESS_TIMEZONE` (validada al arrancar). `query.paginate_rows` para consultas de varias columnas. Colección Postman y README actualizados.
+- Frontend sin cambios (llega en la 11b).
+- 401 tests backend.

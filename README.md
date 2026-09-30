@@ -132,6 +132,15 @@ docs/postman/      # colección "URANTIAD API"
 - `GET /api/v1/audit-logs` con filtros por entidad, acción, usuario, búsqueda y fechas. Permiso `audit.read` (administrador).
 - En el frontend, `/auditoria` "Auditoría" (administrador): tabla con fecha, usuario, acción (color + icono + texto), entidad (enlazada a la venta o compra) y un resumen; filtros por área, acción, usuario, búsqueda y fechas; y el detalle con los valores anteriores y nuevos de cada campo.
 
+### Reportes
+
+- Solo lectura y sin tablas propias: cada reporte es una consulta agrupada (una página de grupos) más el resumen del periodo, con los mismos filtros. Los días se agrupan en la hora del negocio (`BUSINESS_TIMEZONE`).
+- `GET /api/v1/reports/sales` (`sales.read_all`): ventas completadas por día, cajero, caja, producto, categoría o método de pago; total, descuentos, IVA incluido, total sin IVA, costo, margen bruto y margen % (costos solo con `products.view_costs`). Las ventas anuladas no suman y se muestran aparte.
+- `GET /api/v1/reports/purchases` (`purchases.read`): compras confirmadas por proveedor, producto, categoría o día de confirmación.
+- `GET /api/v1/reports/inventory` (`inventory.read`): productos físicos activos por nivel de stock y valor del inventario al costo promedio, por categoría.
+- `GET /api/v1/reports/cash` (`cash.supervise`): aperturas por día, caja o cajero: movimientos, esperado y contado, sobrantes y faltantes por separado.
+- Los permisos son los del listado de cada área: un reporte no muestra nada que ese usuario no pueda consultar ya.
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos
@@ -206,6 +215,7 @@ npm run dev
 | `backend/.env` | `COOKIE_SECURE` | `true` en producción (cookie solo por HTTPS) |
 | `backend/.env` | `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES` | Bloqueo por intentos fallidos (por defecto 5 intentos, 15 min) |
 | `.env` / `backend/.env` | `ALLOW_NEGATIVE_STOCK` | Permite que las salidas dejen stock negativo (por defecto `false`) |
+| `backend/.env` | `BUSINESS_TIMEZONE` | Zona horaria con la que los reportes agrupan por día (por defecto `America/Bogota`) |
 | `frontend/.env` | `VITE_API_URL` | URL base de la API |
 
 Los archivos `.env` nunca se versionan; mantener actualizados los `.env.example`.

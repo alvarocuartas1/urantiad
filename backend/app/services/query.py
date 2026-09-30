@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, func, select
+from sqlalchemy import ColumnElement, Row, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -19,11 +19,22 @@ def contains_pattern(value: str) -> str:
     return f"%{escaped}%"
 
 
+def _count(db: Session, stmt: Select[Any]) -> int:
+    return db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
+
+
 def paginate[T](db: Session, stmt: Select[Any], params: PageParams) -> tuple[Sequence[T], int]:
     """Run `stmt` for one page and return `(items, total)`. `stmt` must already be ordered."""
-    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
     items = db.scalars(stmt.offset(params.offset).limit(params.size)).all()
-    return items, total
+    return items, _count(db, stmt)
+
+
+def paginate_rows(
+    db: Session, stmt: Select[Any], params: PageParams
+) -> tuple[Sequence[Row[Any]], int]:
+    """Like `paginate`, for statements with several columns (e.g. grouped reports)."""
+    rows = db.execute(stmt.offset(params.offset).limit(params.size)).all()
+    return rows, _count(db, stmt)
 
 
 def filter_date_range(
