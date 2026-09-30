@@ -32,7 +32,7 @@ from app.models import (
 from app.schemas.cash import CashSessionClose
 from app.schemas.sale import SaleCancel, SaleCreate
 from app.services import cash_service, sale_service
-from tests.conftest import DEFAULT_PASSWORD_HASH
+from tests.conftest import DEFAULT_PASSWORD_HASH, purge_audit_logs
 
 THREAD_TIMEOUT_SECONDS = 10
 
@@ -58,6 +58,7 @@ def _purge_committed_rows() -> None:
         db.execute(delete(CashRegister).where(CashRegister.name.startswith(REGISTER_PREFIX)))
         db.execute(delete(Product).where(Product.sku.startswith(SKU_PREFIX)))
         db.execute(delete(Category).where(Category.name == CATEGORY_NAME))
+        purge_audit_logs(db, select(User.id).where(User.username.in_(USERNAMES)))
         db.execute(delete(User).where(User.username.in_(USERNAMES)))
         # Numbers taken here would otherwise be skipped by later test runs' expectations.
         db.execute(

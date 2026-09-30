@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError, ConflictError, NotFoundError
-from app.models import Product, ProductType, Supplier, SupplierProduct
+from app.models import AuditAction, Product, ProductType, Supplier, SupplierProduct, User
 from app.schemas.common import PageParams
 from app.schemas.supplier import (
     SupplierCreate,
@@ -21,6 +21,7 @@ from app.schemas.supplier import (
     SupplierProductUpdate,
     SupplierUpdate,
 )
+from app.services import audit_service, product_service
 from app.services.product_service import get_product, matches_search
 from app.services.query import contains_pattern, paginate, violated_constraint
 
@@ -36,9 +37,24 @@ CONFLICTS_BY_CONSTRAINT = {
 }
 
 
-def _commit(db: Session) -> None:
+AUDITED_FIELDS = (
+    "document_type",
+    "document_number",
+    "name",
+    "contact_name",
+    "phone",
+    "email",
+    "address",
+    "city",
+    "notes",
+    "is_active",
+)
+AUDITED_LINK_FIELDS = ("supplier_sku", "purchase_price", "notes")
+
+
+def _flush(db: Session) -> None:
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         conflict = CONFLICTS_BY_CONSTRAINT.get(violated_constraint(exc) or "")
@@ -76,18 +92,38 @@ def get_supplier(db: Session, supplier_id: int) -> Supplier:
     return supplier
 
 
-def create_supplier(db: Session, data: SupplierCreate) -> Supplier:
+def create_supplier(db: Session, actor: User, data: SupplierCreate) -> Supplier:
     supplier = Supplier(**data.model_dump())
     db.add(supplier)
-    _commit(db)
+    _flush(db)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.SUPPLIER_CREATE,
+        supplier.id,
+        supplier.name,
+        new=audit_service.snapshot(supplier, AUDITED_FIELDS),
+    )
+    db.commit()
     return supplier
 
 
-def update_supplier(db: Session, supplier_id: int, data: SupplierUpdate) -> Supplier:
+def update_supplier(db: Session, actor: User, supplier_id: int, data: SupplierUpdate) -> Supplier:
     supplier = get_supplier(db, supplier_id)
+    before = audit_service.snapshot(supplier, AUDITED_FIELDS)
     for field, value in data.changes().items():
         setattr(supplier, field, value)
-    _commit(db)
+    _flush(db)
+    audit_service.record_changes(
+        db,
+        actor,
+        AuditAction.SUPPLIER_UPDATE,
+        supplier.id,
+        supplier.name,
+        before,
+        audit_service.snapshot(supplier, AUDITED_FIELDS),
+    )
+    db.commit()
     return supplier
 
 
@@ -152,8 +188,12 @@ def get_supplier_product(db: Session, supplier_id: int, product_id: int) -> Supp
     return link
 
 
+def _link_product(link: SupplierProduct) -> audit_service.Values:
+    return {"product": product_service.audit_label(link.product)}
+
+
 def add_supplier_product(
-    db: Session, supplier_id: int, data: SupplierProductCreate
+    db: Session, actor: User, supplier_id: int, data: SupplierProductCreate
 ) -> SupplierProduct:
     supplier = get_supplier(db, supplier_id)
     if not supplier.is_active:
@@ -170,26 +210,58 @@ def add_supplier_product(
         notes=data.notes,
     )
     db.add(link)
-    _commit(db)
+    _flush(db)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.SUPPLIER_PRODUCT_ADD,
+        supplier.id,
+        supplier.name,
+        new=_link_product(link) | audit_service.snapshot(link, AUDITED_LINK_FIELDS),
+    )
+    db.commit()
     return link
 
 
 def update_supplier_product(
-    db: Session, supplier_id: int, product_id: int, data: SupplierProductUpdate
+    db: Session, actor: User, supplier_id: int, product_id: int, data: SupplierProductUpdate
 ) -> SupplierProduct:
     link = get_supplier_product(db, supplier_id, product_id)
+    before = audit_service.snapshot(link, AUDITED_LINK_FIELDS)
     changes = data.changes()
     if "purchase_price" in changes and changes["purchase_price"] != link.purchase_price:
         # The date tracks the price itself, so it changes only when the price does.
         link.price_updated_at = datetime.now(UTC) if changes["purchase_price"] is not None else None
     for field, value in changes.items():
         setattr(link, field, value)
-    _commit(db)
+    _flush(db)
+    old, new = audit_service.changes(before, audit_service.snapshot(link, AUDITED_LINK_FIELDS))
+    if new:
+        # The product is kept on both sides so the record says which link changed.
+        audit_service.record(
+            db,
+            actor,
+            AuditAction.SUPPLIER_PRODUCT_UPDATE,
+            link.supplier.id,
+            link.supplier.name,
+            old=_link_product(link) | old,
+            new=_link_product(link) | new,
+        )
+    db.commit()
     return link
 
 
-def remove_supplier_product(db: Session, supplier_id: int, product_id: int) -> None:
-    db.delete(get_supplier_product(db, supplier_id, product_id))
+def remove_supplier_product(db: Session, actor: User, supplier_id: int, product_id: int) -> None:
+    link = get_supplier_product(db, supplier_id, product_id)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.SUPPLIER_PRODUCT_REMOVE,
+        link.supplier.id,
+        link.supplier.name,
+        old=_link_product(link) | audit_service.snapshot(link, AUDITED_LINK_FIELDS),
+    )
+    db.delete(link)
     db.commit()
 
 

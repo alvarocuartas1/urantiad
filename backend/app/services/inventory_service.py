@@ -15,6 +15,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError, ConflictError
 from app.models import (
     COUNTABLE_UNITS,
+    AuditAction,
     InventoryMovement,
     MovementType,
     Product,
@@ -27,10 +28,12 @@ from app.models import (
 from app.models.inventory import SALE_REVERSAL_TYPES
 from app.schemas.common import PageParams
 from app.schemas.inventory import AdjustmentCreate, AdjustmentDirection
-from app.services.product_service import get_product, matches_search
+from app.services import audit_service
+from app.services.product_service import audit_label, get_product, matches_search
 from app.services.query import filter_date_range, paginate
 
 CENT = Decimal("0.01")
+STOCK_FIELDS = ("current_stock", "average_cost", "last_cost")
 
 # Most urgent first in the replenishment list.
 STOCK_STATUS_PRIORITY = {
@@ -164,6 +167,7 @@ def record_movement(
 
 def create_adjustment(db: Session, actor: User, data: AdjustmentCreate) -> InventoryMovement:
     product = get_product(db, data.product_id, for_update=True)
+    before = audit_service.snapshot(product, STOCK_FIELDS)
     movement_type = (
         MovementType.ADJUSTMENT_IN
         if data.direction == AdjustmentDirection.IN
@@ -177,6 +181,21 @@ def create_adjustment(db: Session, actor: User, data: AdjustmentCreate) -> Inven
         actor,
         unit_cost=data.unit_cost,
         reason=data.reason,
+    )
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.PRODUCT_STOCK_ADJUSTMENT,
+        product.id,
+        audit_label(product),
+        old=before,
+        new=audit_service.values(
+            movement_type=movement_type,
+            quantity=data.quantity,
+            unit_cost=movement.unit_cost,
+            reason=data.reason,
+        )
+        | audit_service.snapshot(product, STOCK_FIELDS),
     )
     db.commit()
     return movement

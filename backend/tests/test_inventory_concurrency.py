@@ -18,7 +18,7 @@ from app.models import Category, InventoryMovement, MovementType, Product, Role,
 from app.schemas.inventory import AdjustmentCreate, AdjustmentDirection
 from app.services import inventory_service
 from app.services.product_service import get_product
-from tests.conftest import DEFAULT_PASSWORD_HASH
+from tests.conftest import DEFAULT_PASSWORD_HASH, purge_audit_logs
 
 # Long enough to be sure the second session is waiting on the row lock, not just slow.
 LOCK_WAIT_SECONDS = 0.5
@@ -37,6 +37,7 @@ def _purge_committed_rows() -> None:
         db.execute(delete(InventoryMovement).where(InventoryMovement.product_id.in_(product_ids)))
         db.execute(delete(Product).where(Product.sku == SKU))
         db.execute(delete(Category).where(Category.name == CATEGORY_NAME))
+        purge_audit_logs(db, select(User.id).where(User.username == USERNAME))
         db.execute(delete(User).where(User.username == USERNAME))
         db.commit()
 

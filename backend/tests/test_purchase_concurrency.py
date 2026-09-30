@@ -26,7 +26,7 @@ from app.models import (
     User,
 )
 from app.services import purchase_service
-from tests.conftest import DEFAULT_PASSWORD_HASH
+from tests.conftest import DEFAULT_PASSWORD_HASH, purge_audit_logs
 
 THREAD_TIMEOUT_SECONDS = 10
 
@@ -52,6 +52,7 @@ def _purge_committed_rows() -> None:
         db.execute(delete(Supplier).where(Supplier.document_number == SUPPLIER_DOCUMENT))
         db.execute(delete(Product).where(is_ours))
         db.execute(delete(Category).where(Category.name == CATEGORY_NAME))
+        purge_audit_logs(db, select(User.id).where(User.username == USERNAME))
         db.execute(delete(User).where(User.username == USERNAME))
         # Numbers taken here would otherwise be skipped by later test runs' expectations.
         db.execute(

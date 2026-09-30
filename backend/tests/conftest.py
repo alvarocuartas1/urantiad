@@ -14,16 +14,26 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Connection, select
+from sqlalchemy import Connection, Select, delete, select, text
 from sqlalchemy.orm import Session
 
 from app.core.database import engine, get_db
 from app.core.permissions import RoleCode
 from app.core.security import create_access_token, hash_password
 from app.main import create_app
-from app.models import Role, User
+from app.models import AuditLog, Role, User
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def purge_audit_logs(db: Session, user_ids: Select[tuple[int]]) -> None:
+    """Delete the audit records of committed test users, so the users can be deleted too.
+
+    The audit log is append-only; the trigger allows this only in maintenance mode, which
+    `SET LOCAL` keeps to the current transaction.
+    """
+    db.execute(text("SET LOCAL app.audit_maintenance = 'on'"))
+    db.execute(delete(AuditLog).where(AuditLog.user_id.in_(user_ids)))
 
 
 @pytest.fixture(scope="session", autouse=True)

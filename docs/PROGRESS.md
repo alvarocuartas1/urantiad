@@ -16,7 +16,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
 | 9 | Arqueo y cierre de caja | Terminada |
-| 10 | Auditoría | Pendiente |
+| 10 | Auditoría | En curso (10a terminada) |
 | 11 | Reportes | Pendiente |
 | 12 | Dashboard | Pendiente |
 | 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
@@ -89,6 +89,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Resumen de ventas de una apertura (`sale_service.session_sales_summary`): ventas `completed` más las anuladas **después** del cierre (`cancelled_at > closed_at`), para que muestre lo que había al cerrar. En tests, `now()` no avanza entre peticiones (una sola transacción): se retrasa `closed_at` a mano.
 - Frontend de cierre: `CloseSessionModal` (RHF + Zod, diferencia en vivo en centavos con `cashDifference`) envía el esperado que muestra; con error se recargan todas las consultas de caja y el modal muestra el nuevo esperado. Usa `mutateAsync`: cerrar la apertura actual la quita de la caché y desmonta el modal, y `mutate` no ejecuta sus callbacks tras desmontarse. `CashDifferenceBadge` (Cuadrada/Sobrante/Faltante, color + icono + texto). El detalle de apertura del supervisor recarga la apertura (`useCashSession`) y alterna con el modal de cierre (sin anidar modales). El POS recarga la apertura ante `NO_OPEN_CASH_SESSION`.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
+- Auditoría: `audit_service.record` explícito en cada servicio, dentro de su transacción y antes del commit (no eventos automáticos de SQLAlchemy: darían ruido de bajo nivel, como el stock que cambia en cada venta). Los servicios que auditan una creación hacen `flush` (traduciendo errores de constraint) para tener el id y luego `commit`. Ediciones sin cambios no generan registro. Valores JSONB con decimales como texto de 2 decimales; `entity_id` sin FK y `entity_label` con el nombre del momento. El prefijo de la acción es el tipo de entidad (CHECK). Ajustes de inventario se auditan sobre el producto; ingresos, retiros y cierres sobre la apertura; productos por proveedor sobre el proveedor (con el producto en ambos lados). No se audita crear ventas, editar borradores de compra, iniciar sesión, categorías, clientes ni cajas. Sin IP (llegaría con middleware + `contextvar`).
+- `audit_logs` inmutable por trigger (`UPDATE`/`DELETE`/`TRUNCATE`), salvo `SET LOCAL app.audit_maintenance = 'on'`: las purgas de las pruebas de concurrencia usan `purge_audit_logs` (conftest) antes de borrar sus usuarios. Permiso `audit.read` (admin). `create-admin` audita con `user_id` nulo.
 
 ## Registro de etapas terminadas
 
@@ -222,3 +224,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - POS: si la caja se cerró en otra pestaña, la venta recarga la apertura y pide abrir caja.
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: ventas en efectivo y mixta, cierre con faltante (observaciones exigidas), anulación del admin mientras el cajero contaba (409, nuevo esperado y sobrante en vivo, recuento cuadrado), el supervisor cierra una apertura olvidada, tabla y filtro por diferencia. Corregidos: el resultado del cierre no aparecía (callbacks de `mutate` perdidos al desmontarse el modal) e insignia de arqueo partida en dos líneas.
 - 360 tests backend, 111 tests frontend.
+
+### Etapa 10a — Auditoría (backend)
+- Tabla `audit_logs` (acción y tipo de entidad con CHECKs, valores anteriores y nuevos en JSONB, índices por entidad, usuario, acción y fecha, trigram en el nombre) con trigger de inmutabilidad y permiso `audit.read` (migración `525470f17f53`).
+- 20 acciones auditadas en productos, inventario, ventas, caja, compras, proveedores y usuarios. Servicios de proveedores, descarte de compras y usuarios reciben ahora `actor`.
+- Endpoint `GET /audit-logs` (filtros por entidad, acción, usuario, búsqueda y fechas; paginado). Colección Postman y README actualizados.
+- Frontend sin cambios (llega en la 10b).
+- 380 tests backend.

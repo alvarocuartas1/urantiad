@@ -75,9 +75,9 @@ def update_purchase(
 
 
 @router.delete("/{purchase_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase(purchase_id: int, _: PurchasesManager, db: DbSession) -> None:
+def delete_purchase(purchase_id: int, actor: PurchasesManager, db: DbSession) -> None:
     """Descarta un borrador. Las compras confirmadas no se eliminan: se anulan."""
-    purchase_service.delete_purchase(db, purchase_id)
+    purchase_service.delete_purchase(db, actor, purchase_id)
 
 
 @router.post("/{purchase_id}/confirm", response_model=PurchaseResponse)

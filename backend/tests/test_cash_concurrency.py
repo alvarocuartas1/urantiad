@@ -17,7 +17,7 @@ from app.core.permissions import RoleCode
 from app.models import CashMovement, CashRegister, CashSession, Role, User
 from app.schemas.cash import CashMovementCreate, CashSessionOpen
 from app.services import cash_service
-from tests.conftest import DEFAULT_PASSWORD_HASH
+from tests.conftest import DEFAULT_PASSWORD_HASH, purge_audit_logs
 
 THREAD_TIMEOUT_SECONDS = 10
 
@@ -33,6 +33,7 @@ def _purge_committed_rows() -> None:
         db.execute(delete(CashMovement).where(CashMovement.cash_session_id.in_(session_ids)))
         db.execute(delete(CashSession).where(CashSession.id.in_(session_ids)))
         db.execute(delete(CashRegister).where(CashRegister.name == REGISTER_NAME))
+        purge_audit_logs(db, select(User.id).where(User.username.in_(USERNAMES)))
         db.execute(delete(User).where(User.username.in_(USERNAMES)))
         db.commit()
 

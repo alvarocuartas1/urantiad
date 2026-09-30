@@ -37,3 +37,4 @@ class PermissionCode(StrEnum):
     SALES_READ = "sales.read"
     SALES_READ_ALL = "sales.read_all"
     SALES_CANCEL = "sales.cancel"
+    AUDIT_READ = "audit.read"

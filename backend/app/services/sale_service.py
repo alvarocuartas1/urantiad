@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.core.permissions import PermissionCode
 from app.models import (
+    AuditAction,
     CashMovementType,
     CashSession,
     CashSessionStatus,
@@ -43,7 +44,7 @@ from app.schemas.sale import (
     SaleItemInput,
     SalePaymentInput,
 )
-from app.services import cash_service, inventory_service, sequence_service
+from app.services import audit_service, cash_service, inventory_service, sequence_service
 from app.services.cash_service import format_money
 from app.services.query import contains_pattern, filter_date_range, paginate
 
@@ -477,6 +478,21 @@ def cancel_sale(db: Session, actor: User, sale_id: int, data: SaleCancel) -> Sal
         sale.cancelled_by = actor
         sale.cancelled_at = func.now()
         sale.cancellation_reason = data.reason
+        audit_service.record(
+            db,
+            actor,
+            AuditAction.SALE_CANCEL,
+            sale.id,
+            sale.number,
+            old=audit_service.values(status=SaleStatus.COMPLETED),
+            new=audit_service.values(
+                status=sale.status,
+                cancellation_reason=data.reason,
+                total=sale.total,
+                cash_refunded=cash,
+                refund_cash_session_id=session.id if session is not None else None,
+            ),
+        )
         db.commit()
     except AppError:
         db.rollback()

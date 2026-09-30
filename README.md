@@ -122,6 +122,15 @@ docs/postman/      # colección "URANTIAD API"
   - `/ventas` (búsqueda, estado y fechas) y `/ventas/:id` (líneas, pagos, cambio y anulación para el administrador).
   - "Mi caja" suma las ventas y anulaciones en efectivo; los movimientos de caja e inventario enlazan la venta de origen.
 
+### Auditoría
+
+- Tabla `audit_logs`: quién, qué acción, cuándo, sobre qué entidad (con su nombre en ese momento) y los **valores anteriores y nuevos** (en ediciones, solo los campos que cambiaron).
+- Se registra en **la misma transacción** que la operación: si la operación falla, no queda registro.
+- Se auditan: creación y edición de productos (incluidos precios), ajustes de inventario, anulación de ventas, aperturas, ingresos, retiros y cierres de caja, compras (creación, descarte, confirmación y anulación), proveedores y sus productos, y usuarios (creación, cambios de rol o estado y restablecimiento de contraseña, sin guardarla).
+- La creación de ventas no se audita: la venta misma es un registro inmutable con su cajero y hora.
+- Es **inmutable**: un trigger de PostgreSQL rechaza `UPDATE`, `DELETE` y `TRUNCATE`, salvo en una transacción que active `SET LOCAL app.audit_maintenance = 'on'` (solo lo usan las pruebas para purgar sus datos). Protege frente a la aplicación, no frente al dueño de la base de datos.
+- `GET /api/v1/audit-logs` con filtros por entidad, acción, usuario, búsqueda y fechas. Permiso `audit.read` (administrador).
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos

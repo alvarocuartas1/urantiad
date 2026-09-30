@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    audit,
     auth,
     cash_registers,
     cash_sessions,
@@ -31,3 +32,4 @@ api_router.include_router(cash_registers.router)
 api_router.include_router(cash_sessions.router)
 api_router.include_router(sales.payment_methods_router)
 api_router.include_router(sales.router)
+api_router.include_router(audit.router)

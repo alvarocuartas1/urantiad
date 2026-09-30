@@ -1,4 +1,5 @@
 # Import every model module here so Alembic autogenerate sees all tables.
+from app.models.audit import AuditAction, AuditEntity, AuditLog
 from app.models.base import Base
 from app.models.cash import (
     CashMovement,
@@ -28,6 +29,9 @@ from app.models.user import User
 
 __all__ = [
     "COUNTABLE_UNITS",
+    "AuditAction",
+    "AuditEntity",
+    "AuditLog",
     "Base",
     "CashMovement",
     "CashMovementType",

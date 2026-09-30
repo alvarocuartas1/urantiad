@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.models import (
+    AuditAction,
     InventoryMovement,
     MovementType,
     Product,
@@ -33,7 +34,7 @@ from app.schemas.purchase import (
     PurchaseInput,
     PurchaseItemInput,
 )
-from app.services import inventory_service, sequence_service
+from app.services import audit_service, inventory_service, sequence_service
 from app.services.product_service import get_product
 from app.services.query import contains_pattern, filter_date_range, paginate, violated_constraint
 from app.services.supplier_service import purchasable_product
@@ -46,9 +47,9 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def _commit(db: Session, purchase: Purchase) -> None:
+def _flush(db: Session, purchase: Purchase) -> None:
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         if violated_constraint(exc) != "uq_purchases_supplier_invoice":
@@ -58,6 +59,20 @@ def _commit(db: Session, purchase: Purchase) -> None:
             "registrada en otra compra.",
             code="DUPLICATE_SUPPLIER_INVOICE",
         ) from exc
+
+
+def audit_label(purchase: Purchase) -> str:
+    return f"{purchase.number or f'Borrador #{purchase.id}'} · {purchase.supplier.name}"
+
+
+def _audit_values(purchase: Purchase) -> audit_service.Values:
+    return audit_service.values(
+        status=purchase.status,
+        supplier=purchase.supplier.name,
+        supplier_invoice_number=purchase.supplier_invoice_number,
+        item_count=len(purchase.items),
+        total=purchase.total,
+    )
 
 
 # --- Queries -------------------------------------------------------------------------
@@ -203,7 +218,16 @@ def create_purchase(db: Session, actor: User, data: PurchaseInput) -> Purchase:
     purchase = Purchase(status=PurchaseStatus.DRAFT, created_by=actor)
     _apply_input(db, purchase, data)
     db.add(purchase)
-    _commit(db, purchase)
+    _flush(db, purchase)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.PURCHASE_CREATE,
+        purchase.id,
+        audit_label(purchase),
+        new=_audit_values(purchase),
+    )
+    db.commit()
     return purchase
 
 
@@ -215,14 +239,23 @@ def update_purchase(db: Session, purchase_id: int, data: PurchaseInput) -> Purch
     except AppError:
         db.rollback()  # discard the lines already changed
         raise
-    _commit(db, purchase)
+    _flush(db, purchase)
+    db.commit()
     return purchase
 
 
-def delete_purchase(db: Session, purchase_id: int) -> None:
+def delete_purchase(db: Session, actor: User, purchase_id: int) -> None:
     """Discard a draft. It never moved inventory nor took a number, so it leaves no gap."""
     purchase = get_purchase(db, purchase_id, for_update=True)
     _require_draft(purchase)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.PURCHASE_DISCARD,
+        purchase.id,
+        audit_label(purchase),
+        old=_audit_values(purchase),
+    )
     db.delete(purchase)
     db.commit()
 
@@ -282,6 +315,20 @@ def confirm_purchase(db: Session, actor: User, purchase_id: int) -> Purchase:
         purchase.status = PurchaseStatus.CONFIRMED
         purchase.confirmed_by = actor
         purchase.confirmed_at = func.now()
+        audit_service.record(
+            db,
+            actor,
+            AuditAction.PURCHASE_CONFIRM,
+            purchase.id,
+            audit_label(purchase),
+            old=audit_service.values(status=PurchaseStatus.DRAFT),
+            new=_audit_values(purchase)
+            | audit_service.values(
+                number=purchase.number,
+                amount_paid=purchase.amount_paid,
+                balance_due=purchase.balance_due,
+            ),
+        )
         db.commit()
     except AppError:
         db.rollback()
@@ -372,6 +419,15 @@ def cancel_purchase(db: Session, actor: User, purchase_id: int, data: PurchaseCa
         purchase.cancelled_by = actor
         purchase.cancelled_at = func.now()
         purchase.cancellation_reason = data.reason
+        audit_service.record(
+            db,
+            actor,
+            AuditAction.PURCHASE_CANCEL,
+            purchase.id,
+            audit_label(purchase),
+            old=audit_service.values(status=PurchaseStatus.CONFIRMED),
+            new=audit_service.values(status=purchase.status, cancellation_reason=data.reason),
+        )
         db.commit()
     except AppError:
         db.rollback()

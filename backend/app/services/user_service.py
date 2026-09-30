@@ -9,11 +9,21 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.core.permissions import RoleCode
 from app.core.security import hash_password
-from app.models import Role, User
+from app.models import AuditAction, Role, User
 from app.schemas.common import PageParams
 from app.schemas.user import UserCreate, UserUpdate
+from app.services import audit_service
 from app.services.auth_service import revoke_user_sessions
 from app.services.query import contains_pattern, paginate
+
+
+def _audit_values(user: User) -> audit_service.Values:
+    return audit_service.values(
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role.name,
+        is_active=user.is_active,
+    )
 
 
 def _username_taken() -> ConflictError:
@@ -50,7 +60,8 @@ def get_user(db: Session, user_id: int, *, for_update: bool = False) -> User:
     return user
 
 
-def create_user(db: Session, data: UserCreate) -> User:
+def create_user(db: Session, actor: User | None, data: UserCreate) -> User:
+    """Create a user. `actor` is `None` only for the `create-admin` command."""
     if db.scalar(select(User.id).where(User.username == data.username)) is not None:
         raise _username_taken()
     user = User(
@@ -61,10 +72,14 @@ def create_user(db: Session, data: UserCreate) -> User:
     )
     db.add(user)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:  # concurrent insert of the same username
         db.rollback()
         raise _username_taken() from exc
+    audit_service.record(
+        db, actor, AuditAction.USER_CREATE, user.id, user.username, new=_audit_values(user)
+    )
+    db.commit()
     return user
 
 
@@ -78,7 +93,7 @@ def create_admin(db: Session, username: str, full_name: str, password: str) -> U
     data = UserCreate(
         username=username, full_name=full_name, password=password, role_id=admin_role.id
     )
-    return create_user(db, data)
+    return create_user(db, None, data)
 
 
 def _ensure_another_active_admin(db: Session, user_id: int) -> None:
@@ -95,6 +110,7 @@ def _ensure_another_active_admin(db: Session, user_id: int) -> None:
 
 def update_user(db: Session, actor: User, user_id: int, data: UserUpdate) -> User:
     user = get_user(db, user_id, for_update=True)
+    before = _audit_values(user)
     new_role = _get_role(db, data.role_id) if data.role_id is not None else None
     deactivating = data.is_active is False and user.is_active
     changing_role = new_role is not None and new_role.id != user.role_id
@@ -122,16 +138,21 @@ def update_user(db: Session, actor: User, user_id: int, data: UserUpdate) -> Use
         user.is_active = data.is_active
     if deactivating:
         revoke_user_sessions(db, user.id)
+    audit_service.record_changes(
+        db, actor, AuditAction.USER_UPDATE, user.id, user.username, before, _audit_values(user)
+    )
     db.commit()
     return user
 
 
-def reset_password(db: Session, user_id: int, new_password: str) -> None:
+def reset_password(db: Session, actor: User, user_id: int, new_password: str) -> None:
     user = get_user(db, user_id, for_update=True)
     user.password_hash = hash_password(new_password)
     user.failed_login_attempts = 0
     user.locked_until = None
     revoke_user_sessions(db, user.id)
+    # The password itself is never recorded, not even its hash.
+    audit_service.record(db, actor, AuditAction.USER_PASSWORD_RESET, user.id, user.username)
     db.commit()
 
 

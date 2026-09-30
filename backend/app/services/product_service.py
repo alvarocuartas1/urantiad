@@ -13,9 +13,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError, ConflictError, NotFoundError
-from app.models import Product, ProductPriceHistory, ProductType, StockStatus, User
+from app.models import AuditAction, Product, ProductPriceHistory, ProductType, StockStatus, User
 from app.schemas.common import PageParams
 from app.schemas.product import ProductCreate, ProductUpdate
+from app.services import audit_service
 from app.services.category_service import get_active_category
 from app.services.query import contains_pattern, paginate, violated_constraint
 
@@ -30,9 +31,38 @@ CONFLICTS_BY_CONSTRAINT = {
 }
 
 
-def _commit(db: Session) -> None:
+# Stock and the costs of physical products are audited through their inventory movements.
+AUDITED_FIELDS = (
+    "type",
+    "sku",
+    "barcode",
+    "name",
+    "description",
+    "unit_of_measure",
+    "tax_rate",
+    "sale_price",
+    "min_stock",
+    "reorder_point",
+    "target_stock",
+    "is_active",
+)
+
+
+def audit_label(product: Product) -> str:
+    return f"{product.sku} · {product.name}"
+
+
+def _audit_values(product: Product) -> audit_service.Values:
+    values = audit_service.snapshot(product, AUDITED_FIELDS)
+    values["category"] = product.category.name
+    if product.type == ProductType.SERVICE:
+        values["cost"] = audit_service.json_value(product.average_cost)
+    return values
+
+
+def _flush(db: Session) -> None:
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         conflict = CONFLICTS_BY_CONSTRAINT.get(violated_constraint(exc) or "")
@@ -133,12 +163,22 @@ def create_product(db: Session, actor: User, data: ProductCreate) -> Product:
             product=product, old_price=None, new_price=data.sale_price, changed_by_id=actor.id
         )
     )
-    _commit(db)
+    _flush(db)
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.PRODUCT_CREATE,
+        product.id,
+        audit_label(product),
+        new=_audit_values(product),
+    )
+    db.commit()
     return product
 
 
 def update_product(db: Session, actor: User, product_id: int, data: ProductUpdate) -> Product:
     product = get_product(db, product_id, for_update=True)
+    before = _audit_values(product)
     changes: dict[str, Any] = data.changes()
 
     if "category_id" in changes:
@@ -169,7 +209,17 @@ def update_product(db: Session, actor: User, product_id: int, data: ProductUpdat
 
     for field, value in changes.items():
         setattr(product, field, value)
-    _commit(db)
+    _flush(db)
+    audit_service.record_changes(
+        db,
+        actor,
+        AuditAction.PRODUCT_UPDATE,
+        product.id,
+        audit_label(product),
+        before,
+        _audit_values(product),
+    )
+    db.commit()
     return product
 
 

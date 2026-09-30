@@ -49,16 +49,16 @@ def get_supplier(supplier_id: int, _: SuppliersReader, db: DbSession) -> Supplie
 
 
 @router.post("", response_model=SupplierResponse, status_code=status.HTTP_201_CREATED)
-def create_supplier(body: SupplierCreate, _: SuppliersManager, db: DbSession) -> Supplier:
-    return supplier_service.create_supplier(db, body)
+def create_supplier(body: SupplierCreate, actor: SuppliersManager, db: DbSession) -> Supplier:
+    return supplier_service.create_supplier(db, actor, body)
 
 
 @router.patch("/{supplier_id}", response_model=SupplierResponse)
 def update_supplier(
-    supplier_id: int, body: SupplierUpdate, _: SuppliersManager, db: DbSession
+    supplier_id: int, body: SupplierUpdate, actor: SuppliersManager, db: DbSession
 ) -> Supplier:
     """Actualiza datos o estado. Los proveedores no se eliminan: se desactivan."""
-    return supplier_service.update_supplier(db, supplier_id, body)
+    return supplier_service.update_supplier(db, actor, supplier_id, body)
 
 
 @router.get("/{supplier_id}/products", response_model=Page[SupplierProductResponse])
@@ -91,10 +91,10 @@ def list_supplier_products(
     status_code=status.HTTP_201_CREATED,
 )
 def add_supplier_product(
-    supplier_id: int, body: SupplierProductCreate, _: SuppliersManager, db: DbSession
+    supplier_id: int, body: SupplierProductCreate, actor: SuppliersManager, db: DbSession
 ) -> SupplierProduct:
     """Asocia un producto físico activo al proveedor, con su precio de compra sin IVA."""
-    return supplier_service.add_supplier_product(db, supplier_id, body)
+    return supplier_service.add_supplier_product(db, actor, supplier_id, body)
 
 
 @router.patch("/{supplier_id}/products/{product_id}", response_model=SupplierProductResponse)
@@ -102,15 +102,15 @@ def update_supplier_product(
     supplier_id: int,
     product_id: int,
     body: SupplierProductUpdate,
-    _: SuppliersManager,
+    actor: SuppliersManager,
     db: DbSession,
 ) -> SupplierProduct:
     """Actualiza código, precio u observaciones. La fecha del precio cambia solo con el precio."""
-    return supplier_service.update_supplier_product(db, supplier_id, product_id, body)
+    return supplier_service.update_supplier_product(db, actor, supplier_id, product_id, body)
 
 
 @router.delete("/{supplier_id}/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_supplier_product(
-    supplier_id: int, product_id: int, _: SuppliersManager, db: DbSession
+    supplier_id: int, product_id: int, actor: SuppliersManager, db: DbSession
 ) -> None:
-    supplier_service.remove_supplier_product(db, supplier_id, product_id)
+    supplier_service.remove_supplier_product(db, actor, supplier_id, product_id)

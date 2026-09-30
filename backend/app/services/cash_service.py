@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError
 from app.core.permissions import PermissionCode
 from app.models import (
+    AuditAction,
     CashMovement,
     CashMovementType,
     CashRegister,
@@ -35,6 +36,7 @@ from app.schemas.cash import (
     CashSummary,
 )
 from app.schemas.common import PageParams
+from app.services import audit_service
 from app.services.query import contains_pattern, filter_date_range, paginate, violated_constraint
 
 REGISTER_NAME_INDEX = "uq_cash_registers_name_lower"
@@ -42,6 +44,15 @@ OPEN_REGISTER_INDEX = "uq_cash_sessions_open_register"
 OPEN_USER_INDEX = "uq_cash_sessions_open_user"
 
 ZERO = Decimal("0.00")
+
+MANUAL_MOVEMENT_ACTIONS = {
+    CashMovementType.INCOME: AuditAction.CASH_SESSION_INCOME,
+    CashMovementType.WITHDRAWAL: AuditAction.CASH_SESSION_WITHDRAWAL,
+}
+
+
+def audit_label(session: CashSession) -> str:
+    return f"{session.cash_register.name} · apertura #{session.id}"
 
 
 # --- Errors --------------------------------------------------------------------------
@@ -244,7 +255,7 @@ def open_session(db: Session, actor: User, data: CashSessionOpen) -> CashSession
     )
     db.add(session)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         constraint = violated_constraint(exc)
@@ -253,6 +264,19 @@ def open_session(db: Session, actor: User, data: CashSessionOpen) -> CashSession
         if constraint == OPEN_USER_INDEX:
             raise _user_has_open_session() from exc
         raise
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.CASH_SESSION_OPEN,
+        session.id,
+        audit_label(session),
+        new=audit_service.values(
+            cash_register=register.name,
+            opening_amount=session.opening_amount,
+            opening_notes=session.opening_notes,
+        ),
+    )
+    db.commit()
     return get_session(db, actor, session.id)
 
 
@@ -341,8 +365,22 @@ def create_movement(
             "Solo quien abrió la caja puede registrar movimientos en ella.",
             code="CASH_SESSION_NOT_OWNED",
         )
-    movement = record_cash_movement(
-        db, session, CashMovementType(data.movement_type), data.amount, actor, data.concept
+    movement_type = CashMovementType(data.movement_type)
+    expected = summary(db, session).expected_cash
+    movement = record_cash_movement(db, session, movement_type, data.amount, actor, data.concept)
+    sign = 1 if movement_type.is_inbound else -1
+    audit_service.record(
+        db,
+        actor,
+        MANUAL_MOVEMENT_ACTIONS[movement_type],
+        session.id,
+        audit_label(session),
+        old=audit_service.values(expected_cash=expected),
+        new=audit_service.values(
+            amount=data.amount,
+            concept=data.concept,
+            expected_cash=expected + sign * data.amount,
+        ),
     )
     db.commit()
     return movement
@@ -392,5 +430,21 @@ def close_session(db: Session, actor: User, session_id: int, data: CashSessionCl
     session.counted_cash = data.counted_cash
     session.difference = difference
     session.closing_notes = data.closing_notes
+    audit_service.record(
+        db,
+        actor,
+        AuditAction.CASH_SESSION_CLOSE,
+        session.id,
+        audit_label(session),
+        old=audit_service.values(status=CashSessionStatus.OPEN),
+        new=audit_service.values(
+            status=session.status,
+            opened_by=session.user.username,
+            expected_cash=expected,
+            counted_cash=data.counted_cash,
+            difference=difference,
+            closing_notes=data.closing_notes,
+        ),
+    )
     db.commit()
     return get_session(db, actor, session.id)

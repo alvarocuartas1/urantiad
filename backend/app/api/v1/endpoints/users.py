@@ -40,8 +40,8 @@ def get_user(user_id: int, _: UsersReader, db: DbSession) -> User:
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(body: UserCreate, _: UsersManager, db: DbSession) -> User:
-    return user_service.create_user(db, body)
+def create_user(body: UserCreate, actor: UsersManager, db: DbSession) -> User:
+    return user_service.create_user(db, actor, body)
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -51,6 +51,6 @@ def update_user(user_id: int, body: UserUpdate, actor: UsersManager, db: DbSessi
 
 
 @router.put("/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
-def reset_password(user_id: int, body: PasswordReset, _: UsersManager, db: DbSession) -> None:
+def reset_password(user_id: int, body: PasswordReset, actor: UsersManager, db: DbSession) -> None:
     """Restablece la contraseña de un usuario, lo desbloquea y cierra sus sesiones."""
-    user_service.reset_password(db, user_id, body.new_password)
+    user_service.reset_password(db, actor, user_id, body.new_password)

@@ -2416,6 +2416,83 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "Listar auditoría",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs?page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "entity_type",
+                  "value": "product",
+                  "disabled": true
+                },
+                {
+                  "key": "entity_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "product.update",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Permiso audit.read (solo administrador). Quién cambió qué y cuándo, con old_values/new_values (solo campos cambiados; montos como texto). Filtros: entity_type (product, supplier, purchase, sale, cash_session, user), entity_id, action (p. ej. product.update, sale.cancel, cash_session.close), user_id, search (nombre de la entidad) y rango de fechas con zona horaria (422 INVALID_DATE_RANGE). Más recientes primero. Solo lectura: el registro es inmutable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
