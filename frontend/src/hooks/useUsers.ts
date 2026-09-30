@@ -4,11 +4,12 @@ import type { UserCreate, UserListParams, UserUpdate } from '@/types/user'
 
 const usersKey = ['users'] as const
 
-export function useUsers(params: UserListParams) {
+export function useUsers(params: UserListParams, { enabled = true } = {}) {
   return useQuery({
     queryKey: [...usersKey, params],
     queryFn: () => listUsers(params),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 

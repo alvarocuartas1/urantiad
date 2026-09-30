@@ -130,6 +130,7 @@ docs/postman/      # colección "URANTIAD API"
 - La creación de ventas no se audita: la venta misma es un registro inmutable con su cajero y hora.
 - Es **inmutable**: un trigger de PostgreSQL rechaza `UPDATE`, `DELETE` y `TRUNCATE`, salvo en una transacción que active `SET LOCAL app.audit_maintenance = 'on'` (solo lo usan las pruebas para purgar sus datos). Protege frente a la aplicación, no frente al dueño de la base de datos.
 - `GET /api/v1/audit-logs` con filtros por entidad, acción, usuario, búsqueda y fechas. Permiso `audit.read` (administrador).
+- En el frontend, `/auditoria` "Auditoría" (administrador): tabla con fecha, usuario, acción (color + icono + texto), entidad (enlazada a la venta o compra) y un resumen; filtros por área, acción, usuario, búsqueda y fechas; y el detalle con los valores anteriores y nuevos de cada campo.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

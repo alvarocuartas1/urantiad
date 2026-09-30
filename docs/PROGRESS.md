@@ -16,12 +16,18 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
 | 9 | Arqueo y cierre de caja | Terminada |
-| 10 | Auditoría | En curso (10a terminada) |
+| 10 | Auditoría | Terminada |
 | 11 | Reportes | Pendiente |
 | 12 | Dashboard | Pendiente |
 | 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
 
 Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b interfaz del POS).
+
+## Pendientes anotados
+
+- **Etapa 13 (o antes del despliegue):** IP y navegador en `audit_logs` (`ip_address`, `user_agent`), capturados con un middleware y una variable de contexto, sin cambiar firmas de servicios.
+- **Cuando haya datos reales en producción:** política de retención de la auditoría (tarea en modo `app.audit_maintenance`). Consultar antes con el contador el tiempo legal de conservación.
+- **Al llegar funciones que dependan de clientes (crédito, facturación electrónica):** auditar clientes. Categorías y cajas quedan sin auditar salvo que se necesite.
 
 ## Decisiones tomadas
 
@@ -91,6 +97,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 - Auditoría: `audit_service.record` explícito en cada servicio, dentro de su transacción y antes del commit (no eventos automáticos de SQLAlchemy: darían ruido de bajo nivel, como el stock que cambia en cada venta). Los servicios que auditan una creación hacen `flush` (traduciendo errores de constraint) para tener el id y luego `commit`. Ediciones sin cambios no generan registro. Valores JSONB con decimales como texto de 2 decimales; `entity_id` sin FK y `entity_label` con el nombre del momento. El prefijo de la acción es el tipo de entidad (CHECK). Ajustes de inventario se auditan sobre el producto; ingresos, retiros y cierres sobre la apertura; productos por proveedor sobre el proveedor (con el producto en ambos lados). No se audita crear ventas, editar borradores de compra, iniciar sesión, categorías, clientes ni cajas. Sin IP (llegaría con middleware + `contextvar`).
 - `audit_logs` inmutable por trigger (`UPDATE`/`DELETE`/`TRUNCATE`), salvo `SET LOCAL app.audit_maintenance = 'on'`: las purgas de las pruebas de concurrencia usan `purge_audit_logs` (conftest) antes de borrar sus usuarios. Permiso `audit.read` (admin). `create-admin` audita con `user_id` nulo.
+- Frontend de auditoría: `useAuditLogs` con `staleTime: 0` (casi toda mutación agrega registros; recargar al abrir la página evita invalidarla desde todas). `utils/audit.ts` concentra etiquetas de acciones y campos, formato de valores (el `status` según la entidad) y el resumen por acción; los campos se ordenan por su declaración ahí, porque JSONB reordena las claves. Las filas de descartes de compra no enlazan (el borrador ya no existe).
+- Tablas: la columna de acciones lleva encabezado visible "Acciones". Un `sr-only` (posición absoluta) dentro de un contenedor con `overflow-x-auto` no posicionado escapa del recorte y crea scroll horizontal en la página.
+- `cash_service.record_cash_movement` acepta `expected_cash` ya calculado con la apertura bloqueada (evita repetir la consulta en retiros manuales).
 
 ## Registro de etapas terminadas
 
@@ -231,3 +240,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Endpoint `GET /audit-logs` (filtros por entidad, acción, usuario, búsqueda y fechas; paginado). Colección Postman y README actualizados.
 - Frontend sin cambios (llega en la 10b).
 - 380 tests backend.
+
+### Etapa 10b — Auditoría (frontend)
+- Página `/auditoria` (`audit.read`, menú "Auditoría"): `AuditLogsTable` (fecha, usuario o "Sistema", `AuditActionBadge` con color + icono + texto, `AuditEntityLink` a ventas y compras, resumen), filtros por área (reinicia la acción), acción, usuario (solo con `users.read`), búsqueda y fechas, y `AuditLogDetailModal` (campo · anterior · nuevo; una sola columna en creaciones y eliminaciones).
+- `types/audit.ts`, `services/audit.ts`, `hooks/useAudit.ts`, `utils/audit.ts`; `useUsers` acepta `enabled`.
+- Backend: el retiro manual reutiliza el esperado ya calculado (sin consulta repetida).
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: datos de todas las áreas por API; listado, orden, "Sistema" para `create-admin`, detalle, filtros por área, usuario y búsqueda, enlace a la venta, cambio propio visible al volver, móvil sin scroll horizontal y cajero sin acceso. Corregidos: scroll horizontal en móvil (`sr-only` en el encabezado) y orden arbitrario de los campos (JSONB).
+- 380 tests backend, 122 tests frontend.

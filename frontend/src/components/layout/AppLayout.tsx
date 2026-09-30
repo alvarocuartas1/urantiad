@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   ClipboardList,
   Contact,
+  FileClock,
   History,
   House,
   KeyRound,
@@ -78,6 +79,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: '/cajas', label: 'Cajas', icon: Landmark, permission: PERMISSIONS.cashRegistersRead },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
+  { to: '/auditoria', label: 'Auditoría', icon: FileClock, permission: PERMISSIONS.auditRead },
 ]
 
 export function AppLayout() {

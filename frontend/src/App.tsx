@@ -3,6 +3,7 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RequirePermission } from '@/components/auth/RequirePermission'
 import { AppLayout } from '@/components/layout/AppLayout'
+import AuditLogsPage from '@/pages/AuditLogsPage'
 import CashRegistersPage from '@/pages/CashRegistersPage'
 import CashSessionsPage from '@/pages/CashSessionsPage'
 import CategoriesPage from '@/pages/CategoriesPage'
@@ -70,6 +71,9 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.cashRegistersRead} />}>
                 <Route path="cajas" element={<CashRegistersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.auditRead} />}>
+                <Route path="auditoria" element={<AuditLogsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
