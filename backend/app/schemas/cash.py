@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Annotated, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -73,13 +74,17 @@ class CashSessionOpen(BaseModel):
 
 
 class CashSummary(BaseModel):
-    """Cash that should be in the drawer. Sales and cancellations join it in Stage 8."""
+    """Cash that should be in the drawer."""
 
     opening_amount: Decimal
     total_income: Decimal
     total_withdrawals: Decimal
+    total_cash_sales: Decimal = Field(description="Parte en efectivo de las ventas.")
+    total_cash_cancellations: Decimal = Field(description="Efectivo devuelto por ventas anuladas.")
     expected_cash: Decimal = Field(
-        description="Dinero inicial + ingresos - retiros.", examples=["150000.00"]
+        description="Dinero inicial + ingresos + ventas en efectivo - retiros - anulaciones en "
+        "efectivo.",
+        examples=["150000.00"],
     )
 
 
@@ -110,10 +115,17 @@ class CashSessionResponse(ORMModel):
 # --- Movements -----------------------------------------------------------------------
 
 
+class ManualCashMovementType(StrEnum):
+    """Types a user registers by hand (sales register their own)."""
+
+    INCOME = CashMovementType.INCOME.value
+    WITHDRAWAL = CashMovementType.WITHDRAWAL.value
+
+
 class CashMovementCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    movement_type: CashMovementType = Field(
+    movement_type: ManualCashMovementType = Field(
         description="`income` suma efectivo; `withdrawal` lo retira (sin superar el esperado)."
     )
     amount: PositiveMoney
@@ -124,12 +136,18 @@ class CashMovementCreate(BaseModel):
     ]
 
 
+class CashMovementSale(ORMModel):
+    id: int
+    number: str = Field(examples=["VENTA-000001"])
+
+
 class CashMovementResponse(ORMModel):
     id: int
     cash_session_id: int
     movement_type: CashMovementType
     amount: Decimal
     concept: str
+    sale: CashMovementSale | None = Field(description="Venta que originó el movimiento.")
     user: UserSummary
     created_at: datetime
 

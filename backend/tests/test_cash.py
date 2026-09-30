@@ -203,6 +203,8 @@ def test_cashier_opens_a_register(
         "opening_amount": "150000.50",
         "total_income": "0.00",
         "total_withdrawals": "0.00",
+        "total_cash_sales": "0.00",
+        "total_cash_cancellations": "0.00",
         "expected_cash": "150000.50",
     }
 
@@ -334,6 +336,8 @@ def test_income_and_withdrawal_update_expected_cash(
         "opening_amount": "100000.00",
         "total_income": "20000.00",
         "total_withdrawals": "45000.50",
+        "total_cash_sales": "0.00",
+        "total_cash_cancellations": "0.00",
         "expected_cash": "74999.50",
     }
 

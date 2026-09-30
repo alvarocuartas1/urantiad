@@ -118,6 +118,8 @@ def test_me_returns_current_user(
         "customers.manage",
         "customers.read",
         "products.read",
+        "sales.create",
+        "sales.read",
     ]
 
 

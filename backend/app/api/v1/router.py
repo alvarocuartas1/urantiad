@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     products,
     purchases,
     roles,
+    sales,
     suppliers,
     users,
 )
@@ -28,3 +29,5 @@ api_router.include_router(purchases.router)
 api_router.include_router(customers.router)
 api_router.include_router(cash_registers.router)
 api_router.include_router(cash_sessions.router)
+api_router.include_router(sales.payment_methods_router)
+api_router.include_router(sales.router)

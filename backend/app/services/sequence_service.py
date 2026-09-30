@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import DocumentSequence
 
 PURCHASE_SEQUENCE = "purchase"
+SALE_SEQUENCE = "sale"
 
 
 def next_number(db: Session, name: str) -> str:

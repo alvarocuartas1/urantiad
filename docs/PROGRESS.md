@@ -14,7 +14,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
 | 6 | Clientes | Terminada |
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
-| 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Pendiente |
+| 8 | POS y ventas: carrito, pagos, consecutivos, anulación | En curso (8a terminada) |
 | 9 | Arqueo y cierre de caja | Pendiente |
 | 10 | Auditoría | Pendiente |
 | 11 | Reportes | Pendiente |
@@ -75,6 +75,13 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Campos de contacto compartidos entre proveedores y clientes: backend `schemas/contact.py`; frontend `types/document.ts`, `utils/document.ts` y esquemas Zod en `utils/validation.ts`.
 - Caja: apertura = `cash_sessions` (`status` open/closed; los campos de cierre llegan en la Etapa 9). Índices únicos parciales `WHERE status = 'open'` por caja y por usuario; abrir bloquea la fila de la caja (serializa aperturas y desactivación). Dinero inicial en la apertura, no como movimiento. `cash_movements` inmutables (`income`/`withdrawal`; ventas añadirán tipos y `sale_id`). Un retiro no puede superar el efectivo esperado (bloqueo de la apertura). Movimientos solo en la propia apertura activa, incluso para el administrador. `cash_service.record_cash_movement` no hace commit y `get_open_session_for_user(for_update=True)` los reutilizarán las ventas. Pagos de compras no generan movimiento de caja: si salen de la caja se registra un retiro (vínculo real con cuentas por pagar, etapa futura). Permisos `cash_registers.read`, `cash.operate` (admin, cajero), `cash_registers.manage`, `cash.supervise` (admin). "Caja Principal" sembrada.
 - Frontend de caja: la apertura y los movimientos devuelven la apertura con su resumen, que se guarda directo en la caché de `current-session` (sin volver a pedirla); las demás consultas de caja se invalidan. Si abrir falla por `USER_HAS_OPEN_SESSION` (abierta en otra pestaña) se recarga la apertura; con otros errores, la lista de cajas. El límite de retiro se valida también en el formulario (centavos). Menú: `NavItem.end` para no resaltar "Mi caja" en `/caja/aperturas`.
+- Ventas: nacen confirmadas (sin borradores); consecutivo `VENTA-` tomado dentro de la transacción. Precio (con IVA) y costo promedio los toma el servidor del catálogo y quedan en `sale_items`. Una línea por producto y un pago por método. Montos: `subtotal` bruto, `lines_discount` + `sale_discount` = `discount_total`, `total = subtotal − discount_total`, `tax_total` = IVA incluido (por línea: `round(total·tasa/(100+tasa))`). El descuento de la venta se reparte por **mayor residuo en centavos** (`sale_service.allocate`): suma exacta y ninguna parte supera el valor de su línea.
+- Pagos: suma = total (422 `PAYMENT_TOTAL_MISMATCH` con el total real; el POS debe recargar precios). Solo el método `is_cash` (único, índice parcial) admite `amount_tendered` y cambio, y genera movimiento de caja por `amount` (no por lo recibido). Métodos de pago: solo listado en esta etapa; su administración queda para el pulido (Etapa 13).
+- Orden de bloqueo común a crear y anular ventas: venta → apertura → productos (por id) → secuencia. Crear no hace consultas después de agregar la venta a la sesión (no se autoflushea sin número).
+- Anulación de venta: entradas `sale_cancellation` al `unit_cost` de la línea (recalculan el promedio; el **último costo no cambia**: `SALE_REVERSAL_TYPES` en `record_movement`). Efectivo: de la apertura de la venta si sigue abierta; si no, de la apertura activa de quien anula (409 `CASH_SESSION_REQUIRED`); si la caja no alcanza, 409 `INSUFFICIENT_CASH` sin cambios. Solo `sales.cancel` (admin).
+- `cash_movements`: tipos `sale` (entrada) y `sale_cancellation` (salida) con `sale_id` obligatorio para ellos (CHECK); el endpoint manual solo acepta `income`/`withdrawal` (`ManualCashMovementType`). El resumen de caja agrupa por tipo y suma según `is_inbound`.
+- Permisos `sales.create`, `sales.read` (admin, cajero; sin `sales.read_all` solo las propias, 404 para ajenas), `sales.read_all`, `sales.cancel` (admin). Inventario no accede a ventas.
+- Tests: si un test verifica que un error no dejó cambios, hace `commit` de la preparación antes de la petición (el `rollback` del servicio deshace también lo que los fixtures solo hicieron `flush`).
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -179,3 +186,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `CashSessionStatusBadge` y `CashMovementTypeBadge` (color + icono + texto). `types/cash.ts`, `services/cash.ts`, `hooks/useCash.ts`, `utils/cash.ts` (etiquetas y esquemas Zod).
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: cajero abre caja, ingreso, retiro excedido rechazado, retiro con decimales; admin ve la caja ocupada, no puede desactivarla, nombre duplicado rechazado, crea caja, ve el detalle de la apertura. Corregidos: resaltado doble en el menú y valor partido en dos líneas.
 - 280 tests backend, 88 tests frontend.
+
+### Etapa 8a — Ventas (backend)
+- Tablas `payment_methods` (7 métodos sembrados; un único `is_cash`), `sales` (consecutivo único, CHECKs de totales y anulación), `sale_items` (precio y costo del momento, reparto del descuento de la venta, CHECK de total) y `sale_payments` (recibido y cambio con CHECK). `inventory_movements` y `cash_movements` ganan `sale_id`; `cash_movements` los tipos `sale` y `sale_cancellation`. Secuencia `sale` (`VENTA`) y permisos `sales.*` (migración `a201edd2370f`).
+- Endpoints `GET /payment-methods`, `/sales` (listar con búsqueda por consecutivo o cliente, estado, cliente, apertura, cajero y fechas; obtener; registrar; `cancel`). El resumen de caja incluye `total_cash_sales` y `total_cash_cancellations`; movimientos de inventario y de caja devuelven la venta de origen. Colección Postman actualizada.
+- Tests de concurrencia: la última unidad vendida a la vez por dos cajeros se vende una sola vez; consecutivos seguidos; la misma venta anulada a la vez se revierte una sola vez (verificados fallando sin el bloqueo).
+- Frontend sin cambios (llega en la 8b).
+- 338 tests backend.

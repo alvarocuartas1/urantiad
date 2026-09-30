@@ -47,7 +47,7 @@ def add_product(db: Session, category: Category, sku: str, **fields: Any) -> Pro
         name=fields.pop("name", sku),
         category=category,
         unit_of_measure=fields.pop("unit_of_measure", "unit"),
-        sale_price=Decimal(1000),
+        sale_price=fields.pop("sale_price", Decimal(1000)),
         **fields,
     )
     db.add(product)

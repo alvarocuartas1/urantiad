@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 from app.models.product import Product, in_values
 from app.models.purchase import Purchase
+from app.models.sale import Sale
 from app.models.user import User
 
 
@@ -39,6 +40,10 @@ ADJUSTMENT_TYPES = frozenset({MovementType.ADJUSTMENT_IN, MovementType.ADJUSTMEN
 PURCHASE_MOVEMENT_TYPES = frozenset(
     {MovementType.PURCHASE_ENTRY, MovementType.PURCHASE_CANCELLATION}
 )
+SALE_MOVEMENT_TYPES = frozenset({MovementType.SALE, MovementType.SALE_CANCELLATION})
+# Units coming back from a customer: they re-enter at the cost they left with, but the last
+# cost stays the last purchase cost.
+SALE_REVERSAL_TYPES = frozenset({MovementType.SALE_RETURN, MovementType.SALE_CANCELLATION})
 
 
 def _type_in(types: frozenset[MovementType]) -> str:
@@ -49,7 +54,7 @@ class InventoryMovement(Base):
     """Immutable stock change of a physical product: the only way `current_stock` changes.
 
     `quantity` is always positive; the movement type gives the direction. Source documents
-    are linked through nullable foreign keys (`purchase_id`; `sale_id` arrives with sales).
+    are linked through nullable foreign keys (`purchase_id`, `sale_id`).
     """
 
     __tablename__ = "inventory_movements"
@@ -75,6 +80,10 @@ class InventoryMovement(Base):
             f"NOT {_type_in(PURCHASE_MOVEMENT_TYPES)} OR purchase_id IS NOT NULL",
             name="purchase_movement_linked",
         ),
+        CheckConstraint(
+            f"NOT {_type_in(SALE_MOVEMENT_TYPES)} OR sale_id IS NOT NULL",
+            name="sale_movement_linked",
+        ),
         Index("ix_inventory_movements_product_id_created_at", "product_id", "created_at"),
     )
 
@@ -96,9 +105,13 @@ class InventoryMovement(Base):
     purchase_id: Mapped[int | None] = mapped_column(
         ForeignKey("purchases.id", ondelete="RESTRICT"), index=True
     )
+    sale_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sales.id", ondelete="RESTRICT"), index=True
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
 
     product: Mapped[Product] = relationship()
     purchase: Mapped[Purchase | None] = relationship()
+    sale: Mapped[Sale | None] = relationship()
     user: Mapped[User] = relationship()

@@ -20,9 +20,11 @@ from app.models import (
     Product,
     ProductType,
     Purchase,
+    Sale,
     StockStatus,
     User,
 )
+from app.models.inventory import SALE_REVERSAL_TYPES
 from app.schemas.common import PageParams
 from app.schemas.inventory import AdjustmentCreate, AdjustmentDirection
 from app.services.product_service import get_product, matches_search
@@ -74,6 +76,11 @@ def validate_quantity(product: Product, quantity: Decimal) -> None:
             code="SERVICE_WITHOUT_INVENTORY",
             status_code=422,
         )
+    validate_whole_units(product, quantity)
+
+
+def validate_whole_units(product: Product, quantity: Decimal) -> None:
+    """Countable units (products or services) are moved and sold whole."""
     if product.unit_of_measure in COUNTABLE_UNITS and quantity != quantity.to_integral_value():
         raise AppError(
             "La cantidad debe ser un número entero para esta unidad de medida.",
@@ -92,13 +99,15 @@ def record_movement(
     unit_cost: Decimal | None = None,
     reason: str | None = None,
     purchase: Purchase | None = None,
+    sale: Sale | None = None,
     restore_costs: tuple[Decimal, Decimal] | None = None,
 ) -> InventoryMovement:
     """Apply a stock movement to `product` and record it, without committing.
 
     `product` must be locked by the caller (`get_product(..., for_update=True)`) so concurrent
     movements cannot read the same stock. Entries with `unit_cost` recalculate the weighted
-    average and the last cost; entries without it use the current average. Exits use the
+    average and the last cost (except units returned by a customer, which keep the last
+    purchase cost); entries without it use the current average. Exits use the
     current average, except reversals of an entry (`unit_cost` given), which leave at that
     cost: `restore_costs` (average, last cost) puts back the costs the entry replaced, and
     without it the entry is removed from the average with the inverse formula.
@@ -114,7 +123,8 @@ def record_movement(
             product.average_cost = weighted_average_cost(
                 stock_before, product.average_cost, quantity, unit_cost
             )
-            product.last_cost = unit_cost
+            if movement_type not in SALE_REVERSAL_TYPES:
+                product.last_cost = unit_cost
         movement_cost = unit_cost if unit_cost is not None else product.average_cost
     else:
         stock_after = stock_before - quantity
@@ -145,6 +155,7 @@ def record_movement(
         last_cost_before=last_cost_before,
         reason=reason,
         purchase=purchase,
+        sale=sale,
         user=user,
     )
     db.add(movement)
@@ -193,6 +204,7 @@ def list_movements(
     stmt = stmt.options(
         selectinload(InventoryMovement.product),
         selectinload(InventoryMovement.purchase),
+        selectinload(InventoryMovement.sale),
         selectinload(InventoryMovement.user),
     ).order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc())
     return paginate(db, stmt, params)

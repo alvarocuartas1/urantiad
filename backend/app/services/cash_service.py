@@ -1,7 +1,7 @@
 """Cash registers, openings (sessions) and cash movements.
 
-`record_cash_movement` is the only code that adds cash movements; sales will reuse it
-inside their own transaction, so it never commits. The session row is locked while the
+`record_cash_movement` is the only code that adds cash movements; sales reuse it inside
+their own transaction, so it never commits. The session row is locked while the
 expected cash is checked, so concurrent withdrawals cannot leave it negative.
 """
 
@@ -21,6 +21,7 @@ from app.models import (
     CashRegister,
     CashSession,
     CashSessionStatus,
+    Sale,
     User,
 )
 from app.schemas.cash import (
@@ -142,25 +143,26 @@ def summaries(db: Session, sessions: Sequence[CashSession]) -> dict[int, CashSum
         amount = case((CashMovement.movement_type == movement_type, CashMovement.amount))
         return func.coalesce(func.sum(amount), ZERO)
 
+    types = list(CashMovementType)
     rows = db.execute(
-        select(
-            CashMovement.cash_session_id,
-            total_of(CashMovementType.INCOME),
-            total_of(CashMovementType.WITHDRAWAL),
-        )
+        select(CashMovement.cash_session_id, *(total_of(t) for t in types))
         .where(CashMovement.cash_session_id.in_([s.id for s in sessions]))
         .group_by(CashMovement.cash_session_id)
     ).all()
-    totals = {session_id: (income, withdrawals) for session_id, income, withdrawals in rows}
+    totals = {row[0]: dict(zip(types, row[1:], strict=True)) for row in rows}
 
     result = {}
     for session in sessions:
-        income, withdrawals = totals.get(session.id, (ZERO, ZERO))
+        by_type = totals.get(session.id, dict.fromkeys(types, ZERO))
+        inbound = sum((by_type[t] for t in types if t.is_inbound), ZERO)
+        outbound = sum((by_type[t] for t in types if not t.is_inbound), ZERO)
         result[session.id] = CashSummary(
             opening_amount=session.opening_amount,
-            total_income=income,
-            total_withdrawals=withdrawals,
-            expected_cash=session.opening_amount + income - withdrawals,
+            total_income=by_type[CashMovementType.INCOME],
+            total_withdrawals=by_type[CashMovementType.WITHDRAWAL],
+            total_cash_sales=by_type[CashMovementType.SALE],
+            total_cash_cancellations=by_type[CashMovementType.SALE_CANCELLATION],
+            expected_cash=session.opening_amount + inbound - outbound,
         )
     return result
 
@@ -273,7 +275,7 @@ def list_sessions(
 # --- Movements -----------------------------------------------------------------------
 
 
-def _format_money(value: Decimal) -> str:
+def format_money(value: Decimal) -> str:
     """`$150.000,50` (Colombian format) for error messages."""
     text = f"{value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
     return f"${text.removesuffix(',00')}"
@@ -286,6 +288,8 @@ def record_cash_movement(
     amount: Decimal,
     user: User,
     concept: str,
+    *,
+    sale: Sale | None = None,
 ) -> CashMovement:
     """Record a cash movement in `session`, without committing.
 
@@ -298,8 +302,8 @@ def record_cash_movement(
         available = summary(db, session).expected_cash
         if amount > available:
             raise ConflictError(
-                f"Efectivo insuficiente en caja: disponible {_format_money(available)}, "
-                f"solicitado {_format_money(amount)}.",
+                f"Efectivo insuficiente en caja: disponible {format_money(available)}, "
+                f"solicitado {format_money(amount)}.",
                 code="INSUFFICIENT_CASH",
             )
     movement = CashMovement(
@@ -308,6 +312,7 @@ def record_cash_movement(
         amount=amount,
         concept=concept,
         user=user,
+        sale=sale,
     )
     db.add(movement)
     return movement
@@ -323,7 +328,7 @@ def create_movement(
             code="CASH_SESSION_NOT_OWNED",
         )
     movement = record_cash_movement(
-        db, session, data.movement_type, data.amount, actor, data.concept
+        db, session, CashMovementType(data.movement_type), data.amount, actor, data.concept
     )
     db.commit()
     return movement
@@ -337,7 +342,7 @@ def list_movements(
     stmt = (
         select(CashMovement)
         .where(CashMovement.cash_session_id == session.id)
-        .options(selectinload(CashMovement.user))
+        .options(selectinload(CashMovement.user), selectinload(CashMovement.sale))
         .order_by(CashMovement.created_at.desc(), CashMovement.id.desc())
     )
     return paginate(db, stmt, params)

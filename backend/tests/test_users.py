@@ -335,6 +335,10 @@ def test_list_roles(client: TestClient, admin: User, auth_headers: AuthHeaders) 
         "cash_registers.manage",
         "cash.operate",
         "cash.supervise",
+        "sales.create",
+        "sales.read",
+        "sales.read_all",
+        "sales.cancel",
     }
     assert {p["code"] for p in roles["inventory"]["permissions"]} == {
         "products.read",
@@ -353,6 +357,8 @@ def test_list_roles(client: TestClient, admin: User, auth_headers: AuthHeaders) 
         "customers.manage",
         "cash_registers.read",
         "cash.operate",
+        "sales.create",
+        "sales.read",
     }
 
 

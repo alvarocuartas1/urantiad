@@ -62,7 +62,7 @@ docs/postman/      # colección "URANTIAD API"
 ### Inventario
 
 - El stock cambia **solo** mediante movimientos (`inventory_movements`), que son inmutables: guardan tipo, cantidad, stock anterior y nuevo, costo unitario, costo promedio resultante, motivo, usuario y fecha. Un `CHECK` garantiza que `stock_after = stock_before ± cantidad`.
-- Tipos: entrada por compra, anulación de compra, venta, ajuste positivo y negativo, devolución de compra, devolución de venta y anulación de venta (los de ventas y devoluciones se usan en sus etapas). Los movimientos de compras enlazan su compra (`purchase_id`).
+- Tipos: entrada por compra, anulación de compra, venta, ajuste positivo y negativo, devolución de compra, devolución de venta y anulación de venta (las devoluciones llegarán en una etapa futura). Los movimientos enlazan su documento de origen (`purchase_id`, `sale_id`).
 - **Ajustes manuales** (`inventory.adjust`) con motivo obligatorio. Una entrada con costo recalcula el **costo promedio ponderado** y el último costo (así se hace la carga inicial); sin costo, se valora al promedio actual. Las salidas usan el costo promedio.
 - **Stock negativo** no permitido por defecto (`ALLOW_NEGATIVE_STOCK`). Las unidades contables (unidad, paquete, caja, página) solo aceptan cantidades enteras.
 - Cada movimiento bloquea la fila del producto (`SELECT … FOR UPDATE`): dos operaciones simultáneas sobre el mismo producto se aplican en serie y nunca venden stock inexistente.
@@ -99,12 +99,23 @@ docs/postman/      # colección "URANTIAD API"
 
 - **Cajas** (`cash_registers`): nombre único sin distinguir mayúsculas, descripción y estado. No se eliminan; una caja abierta no se puede desactivar. La migración crea **"Caja Principal"**.
 - **Aperturas** (`cash_sessions`): caja, usuario, dinero inicial, observaciones y fecha. Una caja y un usuario tienen como máximo una apertura activa, garantizado por índices únicos parciales (`WHERE status = 'open'`) además de la validación del servicio. El cierre y el arqueo llegan en la Etapa 9.
-- **Movimientos** (`cash_movements`): ingresos y retiros inmutables con concepto obligatorio, solo en la propia apertura activa. **Efectivo esperado** = dinero inicial + ingresos − retiros (las ventas y anulaciones en efectivo se suman en la Etapa 8). Un retiro no puede superar el efectivo esperado: la apertura se bloquea (`SELECT ... FOR UPDATE`) al registrarlo, así dos retiros simultáneos no dejan la caja en negativo.
+- **Movimientos** (`cash_movements`): ingresos y retiros inmutables con concepto obligatorio, solo en la propia apertura activa. Las ventas registran sus propios movimientos (`sale`, `sale_cancellation`, enlazados con `sale_id`). **Efectivo esperado** = dinero inicial + ingresos + ventas en efectivo − retiros − anulaciones en efectivo. Un retiro no puede superar el efectivo esperado: la apertura se bloquea (`SELECT ... FOR UPDATE`) al registrarlo, así dos retiros simultáneos no dejan la caja en negativo.
 - Permisos `cash_registers.read` y `cash.operate` (administrador y cajero), `cash_registers.manage` y `cash.supervise` (administrador; ver las aperturas de todos).
 - En el frontend:
   - `/caja` "Mi caja": abrir una caja (las ocupadas aparecen deshabilitadas con quién las tiene), resumen con el efectivo esperado, registrar ingresos y retiros, y lista de movimientos.
   - `/cajas`: listado con quién tiene abierta cada caja; crear, editar y desactivar (administrador).
   - `/caja/aperturas`: historial de aperturas de todos los usuarios, con filtros por caja, estado y fechas, y detalle con movimientos (administrador).
+
+### Ventas
+
+- Una venta nace confirmada, en **una sola transacción**: consecutivo `VENTA-000001`, líneas, pagos, salidas de inventario al costo promedio y entrada de caja por la parte en efectivo. Si algo falla (stock insuficiente, pagos que no cuadran…), no se guarda nada y el número no se consume.
+- Requiere una **apertura de caja activa** del usuario; la venta queda asociada a ella. Sin cliente, se usa "Consumidor final".
+- El **precio y el costo** de cada línea los toma el servidor del catálogo (nunca del cliente) y quedan guardados para calcular márgenes históricos. Los servicios no mueven inventario.
+- **Descuentos** por línea y por venta, en valor. El de la venta se reparte entre las líneas en proporción a su valor (en centavos exactos), así el IVA incluido de cada línea es correcto.
+- **Pagos** (`sale_payments`): uno o varios métodos (pago mixto) que deben sumar el total. Los métodos viven en la tabla `payment_methods` (efectivo, Nequi, Daviplata, transferencia, tarjetas, otro); solo el efectivo entra a la caja y admite dinero recibido y cambio.
+- **Anular** (`sales.cancel`, administrador) exige motivo: las unidades vuelven al costo con que salieron (el último costo no cambia) y el efectivo sale de la caja de la venta si sigue abierta, o de la caja abierta de quien anula. La venta nunca se borra.
+- Se bloquean la apertura, los productos (en orden de id) y la secuencia: dos ventas simultáneas de la última unidad no la venden dos veces.
+- Permisos `sales.create` y `sales.read` (administrador y cajero; el cajero solo ve sus ventas), `sales.read_all` y `sales.cancel` (administrador). El costo de las líneas solo se muestra con `products.view_costs`.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

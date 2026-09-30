@@ -73,6 +73,11 @@ class PurchaseReference(ORMModel):
     number: str = Field(examples=["COMPRA-000001"])
 
 
+class SaleReference(ORMModel):
+    id: int
+    number: str = Field(examples=["VENTA-000001"])
+
+
 class MovementResponse(ORMModel):
     id: int
     product: ProductStockSummary
@@ -86,6 +91,7 @@ class MovementResponse(ORMModel):
     )
     reason: str | None
     purchase: PurchaseReference | None = Field(description="Compra que originó el movimiento.")
+    sale: SaleReference | None = Field(description="Venta que originó el movimiento.")
     user: UserSummary
     created_at: datetime
 

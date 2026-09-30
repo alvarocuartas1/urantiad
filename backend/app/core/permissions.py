@@ -33,3 +33,7 @@ class PermissionCode(StrEnum):
     CASH_REGISTERS_MANAGE = "cash_registers.manage"
     CASH_OPERATE = "cash.operate"
     CASH_SUPERVISE = "cash.supervise"
+    SALES_CREATE = "sales.create"
+    SALES_READ = "sales.read"
+    SALES_READ_ALL = "sales.read_all"
+    SALES_CANCEL = "sales.cancel"

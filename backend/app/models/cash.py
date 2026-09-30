@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 from app.models.product import in_values
 from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.sale import Sale
 
 
 class CashSessionStatus(StrEnum):
@@ -18,13 +22,23 @@ class CashSessionStatus(StrEnum):
 class CashMovementType(StrEnum):
     INCOME = "income"
     WITHDRAWAL = "withdrawal"
+    # Created by sales: the cash part of a sale, and its refund when the sale is cancelled.
+    SALE = "sale"
+    SALE_CANCELLATION = "sale_cancellation"
 
     @property
     def is_inbound(self) -> bool:
         return self in INBOUND_CASH_MOVEMENT_TYPES
 
 
-INBOUND_CASH_MOVEMENT_TYPES = frozenset({CashMovementType.INCOME})
+INBOUND_CASH_MOVEMENT_TYPES = frozenset({CashMovementType.INCOME, CashMovementType.SALE})
+# The types a user registers by hand; the rest come from their source documents.
+MANUAL_CASH_MOVEMENT_TYPES = frozenset({CashMovementType.INCOME, CashMovementType.WITHDRAWAL})
+SALE_CASH_MOVEMENT_TYPES = frozenset({CashMovementType.SALE, CashMovementType.SALE_CANCELLATION})
+
+
+def _type_in(types: frozenset[CashMovementType]) -> str:
+    return f"movement_type IN ({', '.join(repr(t.value) for t in sorted(types))})"
 
 
 class CashRegister(TimestampMixin, Base):
@@ -93,14 +107,19 @@ class CashSession(Base):
 
 
 class CashMovement(Base):
-    """Immutable cash income or withdrawal of an open session. Mistakes are corrected with
-    an opposite movement. Sales will add their own types and a nullable `sale_id`."""
+    """Immutable cash movement of an open session: manual income or withdrawal, or the cash
+    of a sale and its cancellation (linked through `sale_id`). Mistakes are corrected with
+    an opposite movement."""
 
     __tablename__ = "cash_movements"
     __table_args__ = (
         CheckConstraint(in_values("movement_type", CashMovementType), name="movement_type_valid"),
         CheckConstraint("amount > 0", name="amount_positive"),
         CheckConstraint("btrim(concept) <> ''", name="concept_not_blank"),
+        CheckConstraint(
+            f"({_type_in(SALE_CASH_MOVEMENT_TYPES)}) = (sale_id IS NOT NULL)",
+            name="sale_movement_linked",
+        ),
         Index("ix_cash_movements_cash_session_id_created_at", "cash_session_id", "created_at"),
     )
 
@@ -112,6 +131,10 @@ class CashMovement(Base):
     amount: Mapped[Decimal]
     concept: Mapped[str] = mapped_column(String(255))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    sale_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sales.id", ondelete="RESTRICT"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped[User] = relationship()
+    sale: Mapped["Sale | None"] = relationship()

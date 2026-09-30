@@ -21,6 +21,7 @@ from app.models.product import (
 from app.models.purchase import Purchase, PurchaseItem, PurchaseStatus
 from app.models.refresh_token import RefreshToken
 from app.models.role import Permission, Role, role_permissions
+from app.models.sale import PaymentMethod, Sale, SaleItem, SalePayment, SaleStatus
 from app.models.sequence import DocumentSequence
 from app.models.supplier import DocumentType, Supplier, SupplierProduct
 from app.models.user import User
@@ -39,6 +40,7 @@ __all__ = [
     "DocumentType",
     "InventoryMovement",
     "MovementType",
+    "PaymentMethod",
     "Permission",
     "Product",
     "ProductPriceHistory",
@@ -48,6 +50,10 @@ __all__ = [
     "PurchaseStatus",
     "RefreshToken",
     "Role",
+    "Sale",
+    "SaleItem",
+    "SalePayment",
+    "SaleStatus",
     "StockStatus",
     "Supplier",
     "SupplierProduct",
