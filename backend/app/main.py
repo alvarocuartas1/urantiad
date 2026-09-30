@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.core.request_context import RequestOriginMiddleware
 
 API_V1_PREFIX = "/api/v1"
 
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
         # Lets the frontend read the name of downloaded files (report exports).
         expose_headers=["Content-Disposition"],
     )
+    app.add_middleware(RequestOriginMiddleware)
     register_exception_handlers(app)
     app.include_router(api_router, prefix=API_V1_PREFIX)
     return app

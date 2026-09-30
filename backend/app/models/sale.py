@@ -27,8 +27,9 @@ class SaleStatus(StrEnum):
 
 
 class PaymentMethod(Base):
-    """How a sale is paid (cash, Nequi, card...). Rows are seeded by the migration and can be
-    deactivated or added without code changes; only the cash method moves the drawer."""
+    """How a sale is paid (cash, Nequi, card...). Seeded by the migration; the administrator
+    adds, renames, orders and deactivates them. Only the cash method moves the drawer, so it
+    can never be deactivated. `code` is generated from the first name and never changes."""
 
     __tablename__ = "payment_methods"
     __table_args__ = (
@@ -38,10 +39,14 @@ class PaymentMethod(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(30), unique=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     is_cash: Mapped[bool] = mapped_column(server_default=text("false"))
     is_active: Mapped[bool] = mapped_column(server_default=text("true"))
     sort_order: Mapped[int] = mapped_column(server_default=text("0"))
+
+
+# Names are unique regardless of case ("Nequi" and "nequi" are the same method).
+Index("uq_payment_methods_name_lower", func.lower(PaymentMethod.name), unique=True)
 
 
 class Sale(TimestampMixin, Base):

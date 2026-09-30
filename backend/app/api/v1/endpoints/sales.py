@@ -8,7 +8,6 @@ from app.core.permissions import PermissionCode
 from app.models import SaleStatus, User
 from app.schemas.common import Page, PageParams, page_params
 from app.schemas.sale import (
-    PaymentMethodResponse,
     SaleCancel,
     SaleCreate,
     SaleResponse,
@@ -17,17 +16,10 @@ from app.schemas.sale import (
 from app.services import sale_service
 
 router = APIRouter(prefix="/sales", tags=["sales"])
-payment_methods_router = APIRouter(prefix="/payment-methods", tags=["sales"])
 
 SalesReader = Annotated[User, require_permission(PermissionCode.SALES_READ)]
 SalesCreator = Annotated[User, require_permission(PermissionCode.SALES_CREATE)]
 SalesCanceller = Annotated[User, require_permission(PermissionCode.SALES_CANCEL)]
-
-
-@payment_methods_router.get("", response_model=list[PaymentMethodResponse])
-def list_payment_methods(_: SalesReader, db: DbSession) -> list[PaymentMethodResponse]:
-    """Métodos de pago activos, en el orden en que se muestran en el POS."""
-    return [PaymentMethodResponse.model_validate(m) for m in sale_service.list_payment_methods(db)]
 
 
 @router.get("", response_model=Page[SaleSummary])

@@ -39,6 +39,8 @@ const STYLES: Record<AuditAction, { tone: StatusTone; icon: LucideIcon }> = {
   'user.create': { tone: 'ok', icon: Plus },
   'user.update': { tone: 'neutral', icon: Pencil },
   'user.password_reset': { tone: 'warning', icon: KeyRound },
+  'payment_method.create': { tone: 'ok', icon: Plus },
+  'payment_method.update': { tone: 'neutral', icon: Pencil },
 }
 
 /** Audited action with color + icon + text: reversals in red, creations in green. */

@@ -14,6 +14,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntity, string> = {
   sale: 'Ventas',
   cash_session: 'Caja',
   user: 'Usuarios',
+  payment_method: 'Métodos de pago',
 }
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -37,6 +38,8 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'user.create': 'Usuario creado',
   'user.update': 'Usuario editado',
   'user.password_reset': 'Contraseña restablecida',
+  'payment_method.create': 'Método de pago creado',
+  'payment_method.update': 'Método de pago editado',
 }
 
 /** Actions of one entity type (their code starts with the entity type). */
@@ -116,6 +119,9 @@ const FIELDS: Record<string, FieldSpec> = {
   username: { label: 'Usuario' },
   full_name: { label: 'Nombre completo' },
   role: { label: 'Rol' },
+  // Payment methods
+  code: { label: 'Código' },
+  sort_order: { label: 'Orden' },
 }
 
 // `status` means something different for each entity.
@@ -201,6 +207,7 @@ export function auditSummary(log: AuditLog): string {
     case 'product.update':
     case 'supplier.update':
     case 'user.update':
+    case 'payment_method.update':
       return `Cambió: ${changedLabels(newValues)}`
     case 'product.stock_adjustment':
       return `${value(newValues, 'movement_type')} de ${value(newValues, 'quantity')} · ${value(newValues, 'reason')}`
@@ -232,7 +239,36 @@ export function auditSummary(log: AuditLog): string {
       return `Rol ${value(newValues, 'role')}`
     case 'user.password_reset':
       return 'Sesiones cerradas'
+    case 'payment_method.create':
+      return `Código ${value(newValues, 'code')}`
   }
+}
+
+const BROWSERS: [RegExp, string][] = [
+  [/Edg(e|A|iOS)?\//, 'Edge'],
+  [/OPR\/|Opera/, 'Opera'],
+  [/SamsungBrowser\//, 'Samsung Internet'],
+  [/Firefox\/|FxiOS\//, 'Firefox'],
+  [/Chrome\/|CriOS\//, 'Chrome'],
+  [/Safari\//, 'Safari'],
+]
+// Android before Linux and iOS before macOS: their User-Agents also mention the latter.
+const SYSTEMS: [RegExp, string][] = [
+  [/Windows/, 'Windows'],
+  [/Android/, 'Android'],
+  [/iPhone|iPad|iPod/, 'iOS'],
+  [/Mac OS X|Macintosh/, 'macOS'],
+  [/CrOS/, 'ChromeOS'],
+  [/Linux/, 'Linux'],
+]
+
+/** Short name of a User-Agent ("Edge · Windows"); null when neither part is recognized. The
+ * order matters: Edge and Opera also say "Chrome", and Chrome also says "Safari". */
+export function describeUserAgent(userAgent: string): string | null {
+  const find = (patterns: [RegExp, string][]) =>
+    patterns.find(([pattern]) => pattern.test(userAgent))?.[1]
+  const parts = [find(BROWSERS), find(SYSTEMS)].filter(Boolean)
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 /** Page of the audited document, for entities that have one. */

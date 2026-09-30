@@ -23,6 +23,9 @@ const PRICE_CHANGE: AuditLog = {
   entity_label: 'AGUA-1 · Agua 600 ml',
   old_values: { sale_price: '2000.00' },
   new_values: { sale_price: '2500.00' },
+  ip_address: '192.168.1.20',
+  user_agent:
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0',
 }
 
 const CANCELLED_SALE: AuditLog = {
@@ -35,6 +38,8 @@ const CANCELLED_SALE: AuditLog = {
   entity_label: 'VENTA-000012',
   old_values: { status: 'completed' },
   new_values: { status: 'cancelled', cancellation_reason: 'Cobro duplicado' },
+  ip_address: null,
+  user_agent: null,
 }
 
 const page = <T,>(items: T[]) => ({ items, total: items.length, page: 1, size: 20 })
@@ -72,6 +77,11 @@ describe('AuditLogsPage', () => {
     const row = within(dialog).getByRole('row', { name: /Precio de venta/ })
     expect(row.textContent?.replace(/\s/g, ' ')).toBe('Precio de venta$ 2.000$ 2.500')
     expect(within(dialog).getByRole('columnheader', { name: 'Anterior' })).toBeInTheDocument()
+    expect(within(dialog).getByText('192.168.1.20')).toBeInTheDocument()
+    expect(within(dialog).getByText('Edge · Windows')).toHaveAttribute(
+      'title',
+      expect.stringContaining('Edg/140'),
+    )
   })
 
   it('filters by area and clears an action of another area', async () => {

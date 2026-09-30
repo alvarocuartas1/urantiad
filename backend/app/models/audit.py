@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import StrEnum
+from ipaddress import IPv4Address, IPv6Address
 from typing import Any
 
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, String, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -18,6 +19,7 @@ class AuditEntity(StrEnum):
     SALE = "sale"
     CASH_SESSION = "cash_session"
     USER = "user"
+    PAYMENT_METHOD = "payment_method"
 
 
 class AuditAction(StrEnum):
@@ -43,6 +45,8 @@ class AuditAction(StrEnum):
     USER_CREATE = "user.create"
     USER_UPDATE = "user.update"
     USER_PASSWORD_RESET = "user.password_reset"
+    PAYMENT_METHOD_CREATE = "payment_method.create"
+    PAYMENT_METHOD_UPDATE = "payment_method.update"
 
     @property
     def entity_type(self) -> AuditEntity:
@@ -92,5 +96,8 @@ class AuditLog(Base):
     # Only the fields that changed (updates) or the relevant data (creations, operations).
     old_values: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     new_values: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Where the request came from; NULL without a request (CLI) or for older records.
+    ip_address: Mapped[IPv4Address | IPv6Address | None] = mapped_column(INET)
+    user_agent: Mapped[str | None] = mapped_column(String(255))
 
     user: Mapped[User | None] = relationship()

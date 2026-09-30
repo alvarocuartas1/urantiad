@@ -1,6 +1,7 @@
 /** Audit log: who changed what and when. Amounts in the values are decimal strings. */
 
-export type AuditEntity = 'product' | 'supplier' | 'purchase' | 'sale' | 'cash_session' | 'user'
+export type AuditEntity =
+  'product' | 'supplier' | 'purchase' | 'sale' | 'cash_session' | 'user' | 'payment_method'
 
 export type AuditAction =
   | 'product.create'
@@ -23,6 +24,8 @@ export type AuditAction =
   | 'user.create'
   | 'user.update'
   | 'user.password_reset'
+  | 'payment_method.create'
+  | 'payment_method.update'
 
 export type AuditValue = string | number | boolean | null
 
@@ -41,6 +44,9 @@ export interface AuditLog {
   entity_label: string
   old_values: AuditValues | null
   new_values: AuditValues | null
+  /** Where the request came from; null for the CLI and for records made before it was kept. */
+  ip_address: string | null
+  user_agent: string | null
 }
 
 export interface AuditLogListParams {

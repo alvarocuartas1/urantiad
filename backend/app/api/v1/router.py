@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     dashboard,
     health,
     inventory,
+    payment_methods,
     products,
     purchases,
     reports,
@@ -33,7 +34,7 @@ api_router.include_router(purchases.router)
 api_router.include_router(customers.router)
 api_router.include_router(cash_registers.router)
 api_router.include_router(cash_sessions.router)
-api_router.include_router(sales.payment_methods_router)
+api_router.include_router(payment_methods.router)
 api_router.include_router(sales.router)
 api_router.include_router(audit.router)
 api_router.include_router(reports.router)

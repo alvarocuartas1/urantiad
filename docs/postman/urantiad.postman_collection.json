@@ -67,6 +67,10 @@
     {
       "key": "saleId",
       "value": "1"
+    },
+    {
+      "key": "paymentMethodId",
+      "value": "8"
     }
   ],
   "item": [
@@ -2237,33 +2241,6 @@
       "name": "Sales",
       "item": [
         {
-          "name": "Métodos de pago",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/payment-methods",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payment-methods"
-              ]
-            },
-            "description": "Permiso sales.read. Métodos activos en orden del POS; solo el efectivo (is_cash) entra a la caja y admite cambio."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Registrar venta",
           "request": {
             "method": "POST",
@@ -2418,6 +2395,157 @@
       ]
     },
     {
+      "name": "Payment methods",
+      "item": [
+        {
+          "name": "Métodos de pago activos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/payment-methods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-methods"
+              ]
+            },
+            "description": "Permiso sales.read. Métodos activos en orden del POS; solo el efectivo (is_cash) entra a la caja y admite cambio."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Todos los métodos de pago",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/payment-methods?include_inactive=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-methods"
+              ],
+              "query": [
+                {
+                  "key": "include_inactive",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Permiso payment_methods.manage (administrador): incluye los inactivos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear método de pago",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/payment-methods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-methods"
+              ]
+            },
+            "description": "Permiso payment_methods.manage. El code se genera del nombre (\"Bre-B\" → bre_b) y no cambia. Nombre único sin distinguir mayúsculas (409 PAYMENT_METHOD_NAME_TAKEN). Se audita.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bre-B\",\n  \"sort_order\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('paymentMethodId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar método de pago",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/payment-methods/{{paymentMethodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment-methods",
+                "{{paymentMethodId}}"
+              ]
+            },
+            "description": "Permiso payment_methods.manage. Nombre, orden y estado; code e is_cash no cambian. Desactivar el efectivo: 409 CASH_METHOD_REQUIRED. Las ventas ya pagadas con el método no cambian. Se auditan solo los campos que cambian.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Audit",
       "item": [
         {
@@ -2478,7 +2606,7 @@
                 }
               ]
             },
-            "description": "Permiso audit.read (solo administrador). Quién cambió qué y cuándo, con old_values/new_values (solo campos cambiados; montos como texto). Filtros: entity_type (product, supplier, purchase, sale, cash_session, user), entity_id, action (p. ej. product.update, sale.cancel, cash_session.close), user_id, search (nombre de la entidad) y rango de fechas con zona horaria (422 INVALID_DATE_RANGE). Más recientes primero. Solo lectura: el registro es inmutable."
+            "description": "Permiso audit.read (solo administrador). Quién cambió qué y cuándo, con old_values/new_values (solo campos cambiados; montos como texto). Filtros: entity_type (product, supplier, purchase, sale, cash_session, user), entity_id, action (p. ej. product.update, sale.cancel, cash_session.close), user_id, search (nombre de la entidad) y rango de fechas con zona horaria (422 INVALID_DATE_RANGE). Más recientes primero. Solo lectura: el registro es inmutable. Cada registro incluye ip_address y user_agent de la petición (nulos para create-admin y registros anteriores)."
           },
           "event": [
             {

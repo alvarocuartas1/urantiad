@@ -35,9 +35,9 @@ from app.models import (
     User,
 )
 from app.schemas.common import PageParams
+from app.schemas.payment_method import PaymentMethodResponse
 from app.schemas.sale import (
     CashSessionSalesSummary,
-    PaymentMethodResponse,
     PaymentMethodTotal,
     SaleCancel,
     SaleCreate,
@@ -279,15 +279,6 @@ def newest_first(stmt: Select[tuple[Sale]]) -> Select[tuple[Sale]]:
         selectinload(Sale.user),
         selectinload(Sale.cash_session).selectinload(CashSession.cash_register),
     ).order_by(Sale.created_at.desc(), Sale.id.desc())
-
-
-def list_payment_methods(db: Session) -> Sequence[PaymentMethod]:
-    """Active payment methods in display order (a short catalog: not paginated)."""
-    return db.scalars(
-        select(PaymentMethod)
-        .where(PaymentMethod.is_active.is_(True))
-        .order_by(PaymentMethod.sort_order, PaymentMethod.id)
-    ).all()
 
 
 def session_sales_summary(db: Session, actor: User, session_id: int) -> CashSessionSalesSummary:

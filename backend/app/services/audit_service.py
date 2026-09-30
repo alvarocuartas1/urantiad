@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.request_context import current_origin
 from app.models import AuditAction, AuditEntity, AuditLog, User
 from app.schemas.common import PageParams
 from app.services.query import contains_pattern, filter_date_range, paginate
@@ -57,7 +58,9 @@ def record(
     old: Values | None = None,
     new: Values | None = None,
 ) -> AuditLog:
-    """Add an audit record to the current transaction (without committing)."""
+    """Add an audit record to the current transaction (without committing), with the IP
+    and browser of the current request, if any."""
+    origin = current_origin()
     log = AuditLog(
         user_id=actor.id if actor is not None else None,
         action=action,
@@ -66,6 +69,8 @@ def record(
         entity_label=entity_label[:200],
         old_values=old or None,
         new_values=new or None,
+        ip_address=origin.ip_address,
+        user_agent=origin.user_agent,
     )
     db.add(log)
     return log

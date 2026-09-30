@@ -1,6 +1,6 @@
 import { Modal } from '@/components/ui/Modal'
 import type { AuditLog } from '@/types/audit'
-import { AUDIT_ENTITY_LABELS, auditChanges } from '@/utils/audit'
+import { AUDIT_ENTITY_LABELS, auditChanges, describeUserAgent } from '@/utils/audit'
 import { formatDateTime } from '@/utils/format'
 import { AuditActionBadge } from './AuditActionBadge'
 import { AuditEntityLink } from './AuditEntityLink'
@@ -41,6 +41,24 @@ export function AuditLogDetailModal({ log, onClose }: AuditLogDetailModalProps) 
             <dt className="text-slate-500">{AUDIT_ENTITY_LABELS[log.entity_type]}</dt>
             <dd>
               <AuditEntityLink log={log} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">IP</dt>
+            <dd className="font-medium text-slate-900 tabular-nums">
+              {log.ip_address ?? 'No registrada'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Navegador</dt>
+            <dd className="font-medium break-words text-slate-900">
+              {log.user_agent ? (
+                <span title={log.user_agent}>
+                  {describeUserAgent(log.user_agent) ?? log.user_agent}
+                </span>
+              ) : (
+                'No registrado'
+              )}
             </dd>
           </div>
         </dl>

@@ -13,6 +13,7 @@ import HomePage from '@/pages/HomePage'
 import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
 import MyCashPage from '@/pages/MyCashPage'
+import PaymentMethodsPage from '@/pages/PaymentMethodsPage'
 import PosPage from '@/pages/PosPage'
 import ProductsPage from '@/pages/ProductsPage'
 import PurchasePage from '@/pages/PurchasePage'
@@ -78,6 +79,9 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.cashRegistersRead} />}>
                 <Route path="cajas" element={<CashRegistersPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.paymentMethodsManage} />}>
+                <Route path="metodos-pago" element={<PaymentMethodsPage />} />
               </Route>
               <Route element={<RequirePermission permission={REPORT_PERMISSIONS} />}>
                 <Route path="reportes" element={<ReportsPage />} />

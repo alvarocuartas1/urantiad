@@ -116,6 +116,7 @@ docs/postman/      # colección "URANTIAD API"
 - **Pagos** (`sale_payments`): uno o varios métodos (pago mixto) que deben sumar el total. Los métodos viven en la tabla `payment_methods` (efectivo, Nequi, Daviplata, transferencia, tarjetas, otro); solo el efectivo entra a la caja y admite dinero recibido y cambio.
 - **Anular** (`sales.cancel`, administrador) exige motivo: las unidades vuelven al costo con que salieron (el último costo no cambia) y el efectivo sale de la caja de la venta si sigue abierta, o de la caja abierta de quien anula. La venta nunca se borra.
 - Se bloquean la apertura, los productos (en orden de id) y la secuencia: dos ventas simultáneas de la última unidad no la venden dos veces.
+- **Métodos de pago** (`/api/v1/payment-methods`): el POS lista los activos (`sales.read`); el administrador (`payment_methods.manage`) los ve todos (`include_inactive`), crea (el código se genera del nombre y no cambia), renombra, ordena y desactiva. El efectivo no se puede desactivar (409 `CASH_METHOD_REQUIRED`) y los nombres son únicos sin distinguir mayúsculas. Desactivar un método no cambia las ventas ya pagadas con él. En el frontend, `/metodos-pago` "Métodos de pago".
 - Permisos `sales.create` y `sales.read` (administrador y cajero; el cajero solo ve sus ventas), `sales.read_all` y `sales.cancel` (administrador). El costo de las líneas solo se muestra con `products.view_costs`.
 - En el frontend:
   - `/pos` "Punto de venta", pensado para teclado y lector de código de barras: el escáner queda siempre enfocado (escanear de nuevo suma una unidad), cantidades y descuentos editables en la tabla, aviso de stock, cliente con **F4** y cobro con **F2**. El cobro abre con efectivo por el total y el foco en "Recibido"; muestra el cambio y admite pagos mixtos. Enter confirma, y en el resumen de la venta Enter inicia la siguiente. Los totales se previsualizan con el mismo redondeo del backend; si un precio cambió, el POS recarga los productos del carrito.
@@ -126,11 +127,12 @@ docs/postman/      # colección "URANTIAD API"
 
 - Tabla `audit_logs`: quién, qué acción, cuándo, sobre qué entidad (con su nombre en ese momento) y los **valores anteriores y nuevos** (en ediciones, solo los campos que cambiaron).
 - Se registra en **la misma transacción** que la operación: si la operación falla, no queda registro.
-- Se auditan: creación y edición de productos (incluidos precios), ajustes de inventario, anulación de ventas, aperturas, ingresos, retiros y cierres de caja, compras (creación, descarte, confirmación y anulación), proveedores y sus productos, y usuarios (creación, cambios de rol o estado y restablecimiento de contraseña, sin guardarla).
+- Se auditan: creación y edición de productos (incluidos precios), ajustes de inventario, anulación de ventas, aperturas, ingresos, retiros y cierres de caja, compras (creación, descarte, confirmación y anulación), proveedores y sus productos, usuarios (creación, cambios de rol o estado y restablecimiento de contraseña, sin guardarla) y métodos de pago.
 - La creación de ventas no se audita: la venta misma es un registro inmutable con su cajero y hora.
+- Cada registro guarda la **IP y el navegador** (`User-Agent`) de la petición, tomados por un middleware sin cambiar las firmas de los servicios (nulos para `create-admin`). La IP es la de la conexión: detrás de un proxy, uvicorn debe correr con `--proxy-headers` y `--forwarded-allow-ips` limitado al proxy; la aplicación nunca lee `X-Forwarded-For` por su cuenta.
 - Es **inmutable**: un trigger de PostgreSQL rechaza `UPDATE`, `DELETE` y `TRUNCATE`, salvo en una transacción que active `SET LOCAL app.audit_maintenance = 'on'` (solo lo usan las pruebas para purgar sus datos). Protege frente a la aplicación, no frente al dueño de la base de datos.
 - `GET /api/v1/audit-logs` con filtros por entidad, acción, usuario, búsqueda y fechas. Permiso `audit.read` (administrador).
-- En el frontend, `/auditoria` "Auditoría" (administrador): tabla con fecha, usuario, acción (color + icono + texto), entidad (enlazada a la venta o compra) y un resumen; filtros por área, acción, usuario, búsqueda y fechas; y el detalle con los valores anteriores y nuevos de cada campo.
+- En el frontend, `/auditoria` "Auditoría" (administrador): tabla con fecha, usuario, acción (color + icono + texto), entidad (enlazada a la venta o compra) y un resumen; filtros por área, acción, usuario, búsqueda y fechas; y el detalle con los valores anteriores y nuevos de cada campo, la IP y el navegador (resumido, p. ej. "Edge · Windows").
 
 ### Reportes
 

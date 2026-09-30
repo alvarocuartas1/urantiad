@@ -10,6 +10,7 @@ from app.schemas.cash import CashRegisterSummary
 from app.schemas.common import ORMModel, optional_text
 from app.schemas.customer import CustomerSummary
 from app.schemas.inventory import PositiveQuantity
+from app.schemas.payment_method import PaymentMethodResponse
 from app.schemas.product import Money, UserSummary
 
 MAX_ITEMS = 200
@@ -21,13 +22,6 @@ PositiveMoney = Annotated[
 
 
 # --- Payment methods -----------------------------------------------------------------
-
-
-class PaymentMethodResponse(ORMModel):
-    id: int
-    code: str = Field(examples=["cash"])
-    name: str = Field(examples=["Efectivo"])
-    is_cash: bool = Field(description="Solo el efectivo entra a la caja y admite cambio.")
 
 
 # --- Input ---------------------------------------------------------------------------

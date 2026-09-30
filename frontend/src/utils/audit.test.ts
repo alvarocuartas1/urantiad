@@ -5,6 +5,7 @@ import {
   auditEntityPath,
   auditSummary,
   formatAuditValue,
+  describeUserAgent,
 } from './audit'
 
 const spaces = (text: string) => text.replace(/\s/g, ' ')
@@ -20,6 +21,8 @@ function buildLog(overrides: Partial<AuditLog>): AuditLog {
     entity_label: 'AGUA-1 · Agua 600 ml',
     old_values: null,
     new_values: null,
+    ip_address: null,
+    user_agent: null,
     ...overrides,
   }
 }
@@ -105,5 +108,29 @@ describe('auditActionsOf', () => {
   it('returns the actions of an area', () => {
     expect(auditActionsOf('sale')).toEqual(['sale.cancel'])
     expect(auditActionsOf('cash_session')).toHaveLength(4)
+  })
+})
+
+describe('describeUserAgent', () => {
+  it.each([
+    [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0',
+      'Edge · Windows',
+    ],
+    [
+      'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+      'Chrome · Android',
+    ],
+    [
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      'Safari · iOS',
+    ],
+    [
+      'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0',
+      'Firefox · Linux',
+    ],
+    ['PostmanRuntime/7.42.0', null],
+  ])('%s', (userAgent, expected) => {
+    expect(describeUserAgent(userAgent)).toBe(expected)
   })
 })

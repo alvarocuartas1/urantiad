@@ -4,6 +4,7 @@ import {
   ChartLine,
   ClipboardList,
   Contact,
+  CreditCard,
   FileClock,
   History,
   House,
@@ -82,6 +83,12 @@ const NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.cashSupervise,
   },
   { to: '/cajas', label: 'Cajas', icon: Landmark, permission: PERMISSIONS.cashRegistersRead },
+  {
+    to: '/metodos-pago',
+    label: 'Métodos de pago',
+    icon: CreditCard,
+    permission: PERMISSIONS.paymentMethodsManage,
+  },
   { to: '/usuarios', label: 'Usuarios', icon: Users, permission: PERMISSIONS.usersRead },
   { to: '/reportes', label: 'Reportes', icon: ChartColumn, permission: REPORT_PERMISSIONS },
   {
