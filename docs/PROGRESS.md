@@ -18,7 +18,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 9 | Arqueo y cierre de caja | Terminada |
 | 10 | Auditoría | Terminada |
 | 11 | Reportes | Terminada |
-| 12 | Dashboard | Pendiente |
+| 12 | Dashboard | Terminada |
 | 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
 
 Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b interfaz del POS).
@@ -104,6 +104,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Reporte de ventas sobre `sale_items` (la suma de las líneas = total de la venta, así todas las agrupaciones suman lo mismo); solo `completed` (estado actual: una venta anulada después no suma y se muestra aparte), a diferencia del resumen de cierre de caja. Por método de pago se usa `sale_payments` y no admite filtro por producto o categoría (422 `REPORT_FILTER_NOT_SUPPORTED`). Ticket promedio nulo con filtros de línea. Compras por `confirmed_at`, solo confirmadas (anuladas aparte). Inventario: físicos activos; el stock negativo no resta valor. Caja: sobrantes y faltantes (positivo) por separado; esperado y contado solo de cerradas.
 - Frontend de reportes: `/reportes/:tab` (`ventas`, `compras`, `inventario`, `caja`); `/reportes` o una pestaña sin permiso redirige a la primera permitida. Permisos "cualquiera de" con `PermissionRequirement` + `meetsRequirement` (ruta y menú). Hooks con `staleTime: 0` (como auditoría) y datos previos **solo con la misma agrupación** (`sameGrouping`): filas de otra agrupación no encajan en las columnas nuevas (un id formateado como fecha rompía la página). Periodo por defecto: mes en curso en hora de Bogotá (`currentMonthDates`). Por método de pago se ocultan y limpian los filtros de categoría y producto. Costos y márgenes solo con `products.view_costs`. `ReportResults` + `ReportTable` genéricos con columnas declarativas (`columns.tsx`).
 - Exportación de reportes: CSV (sin `openpyxl`; un .xlsx con formato podría añadirse sobre las mismas columnas) generado en el backend (`report_export`) con las mismas consultas de `report_service` (una página de `EXPORT_LIMIT` = 10.000 grupos; si hay más, 422 `REPORT_TOO_LARGE`). Formato para Excel en español: UTF-8 con BOM, `;`, coma decimal sin miles, nulos vacíos, fila final "Total" con el resumen; sin `products.view_costs` no hay columnas de costo. Nombre con el periodo en hora local (`ventas-por-dia_2026-09-01_2026-09-30.csv`; inventario con la fecha del día). Filtros como dependencias compartidas entre cada reporte y su exportación. CORS con `expose_headers=["Content-Disposition"]`. Frontend: `apiDownload` comparte con `apiRequest` el envío y el reintento tras 401 (`withSessionRetry`); `saveFile` descarga con una URL temporal. Las exportaciones no se auditan (son lecturas).
+- Dashboard: un solo endpoint `GET /dashboard` (una petición; permisos resueltos en el servidor) sin permiso propio: cada sección es `null` sin el permiso de su área, así no muestra más que los listados. "Hoy" = día local de `BUSINESS_TIMEZONE` calculado en el servidor (`dashboard_service.business_day`, `now` inyectable en tests). Ventas del día sobre `sales` (solo `completed`; anuladas aparte) con alcance `own` sin `sales.read_all` (el cajero ve sus ventas). Cajas activas con `expected_cash` solo con `cash.supervise` (`cash_service.summaries`, una consulta). Stock: conteo por nivel + 5 más urgentes (`inventory_service.replenishment_query`, compartida con el listado). Compras recientes: confirmadas o anuladas por `confirmed_at` (sin borradores). `sale_service.newest_first` y `can_read_all` compartidos.
+- Frontend del dashboard: `useDashboard` con `staleTime: 0` y `refetchInterval` de 60 s (TanStack lo pausa con la pestaña oculta). Barras de métodos de pago con CSS y porcentaje en texto (`sharePercent`, centavos); sin librería de gráficos hasta la etapa de estadísticas. Filas de listas sin `flex-wrap` y columna derecha `shrink-0` (en móvil, el monto y la insignia saltaban a la izquierda).
 
 ## Registro de etapas terminadas
 
@@ -270,3 +272,11 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Colección Postman (4 exportaciones) y README actualizados.
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: descarga de los cuatro reportes desde otro origen (nombre del archivo vía CORS), BOM, encabezados, coma decimal, fila "Total", diferencia de caja negativa y sin errores de consola.
 - 408 tests backend, 135 tests frontend.
+
+### Etapa 12 — Dashboard
+- Endpoint `GET /dashboard` (`dashboard_service`, `schemas/dashboard.py`): ventas del día (número, total, ticket promedio, anuladas, por método de pago), ventas recientes, estado de las cajas, alertas de stock con los más urgentes y compras recientes, cada sección según el permiso de su área. Sin cambios de base de datos ni permisos nuevos.
+- Refactor sin cambio de comportamiento: `inventory_service.replenishment_query`, `sale_service.newest_first` y `can_read_all` (antes privado).
+- Página de inicio con `SalesTodayCard`, `PaymentMethodsCard`, `CashRegistersCard`, `StockAlertsCard`, `RecentSalesCard` y `RecentPurchasesCard` (`components/dashboard/`), `types/dashboard.ts`, `services/dashboard.ts`, `hooks/useDashboard.ts`, `utils/dashboard.ts`. Se conserva el saludo y el estado del servidor.
+- Colección Postman y README actualizados.
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: datos por API (compras, borrador, ventas en efectivo y mixta, anulación); totales, porcentajes, esperado de caja, borrador excluido, enlaces a reposición y a la venta; cajero ("Mis ventas de hoy", sin stock ni compras), bodega (solo stock y compras), móvil sin scroll horizontal. Corregido: en móvil el monto y la insignia de las filas saltaban a la izquierda.
+- 421 tests backend, 140 tests frontend.

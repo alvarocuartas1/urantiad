@@ -2976,6 +2976,38 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard del día",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard"
+              ]
+            },
+            "description": "Requiere sesión. Resumen del día en la zona horaria del negocio (BUSINESS_TIMEZONE). Cada sección es null sin el permiso de su área: sales_today y recent_sales (sales.read; alcance own sin sales.read_all), cash_registers (cash_registers.read; expected_cash solo con cash.supervise), stock (inventory.read: agotados, críticos, bajos y los 5 más urgentes) y recent_purchases (purchases.read; las 5 últimas confirmadas o anuladas, sin borradores)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

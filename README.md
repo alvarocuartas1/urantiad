@@ -1,6 +1,6 @@
 # URANTIAD
 
-Sistema web full stack de **POS + Inventario + Compras + Proveedores + Caja + Reportes** para un negocio de productos comestibles, bebidas, productos de consumo y servicios de fotocopias e impresiones.
+Sistema web full stack de **POS + Inventario + Compras + Proveedores + Caja + Reportes + Dashboard** para un negocio de productos comestibles, bebidas, productos de consumo y servicios de fotocopias e impresiones.
 
 > Estado: en desarrollo por etapas. Ver [docs/PROGRESS.md](docs/PROGRESS.md) y la especificación funcional en [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md).
 
@@ -143,6 +143,11 @@ docs/postman/      # colección "URANTIAD API"
 - **Exportación a CSV** (`GET /api/v1/reports/{sales|purchases|inventory|cash}/export`, mismos permisos y filtros, sin paginación): archivo para Excel en español (UTF-8 con BOM, separador `;`, coma decimal) con las mismas columnas de la pantalla, todas las filas y una fila final "Total". Máximo 10.000 filas (422 `REPORT_TOO_LARGE`). CORS expone `Content-Disposition` para que el frontend lea el nombre del archivo.
 - En el frontend, `/reportes` "Reportes" con una pestaña por área (solo las permitidas): agrupación, periodo (por defecto el mes en curso), filtros de cajero, caja, categoría, proveedor y producto, tarjetas de resumen y la tabla agrupada y paginada. La pestaña de inventario enlaza a productos, reposición y movimientos. Cada pestaña tiene el botón "Exportar CSV" con los filtros en pantalla.
 
+### Dashboard
+
+- `GET /api/v1/dashboard` (requiere sesión, sin permiso propio): resumen del día en la hora del negocio (`BUSINESS_TIMEZONE`). Cada sección llega en `null` sin el permiso de su área: ventas del día y por método de pago, y ventas recientes (`sales.read`; el cajero solo ve las suyas), estado de las cajas activas (`cash_registers.read`; efectivo esperado solo con `cash.supervise`), productos agotados y por reponer (`inventory.read`) y compras recientes (`purchases.read`, sin borradores).
+- En el frontend, la página de inicio (`/`) muestra las secciones permitidas y se recarga cada minuto mientras la pestaña está visible.
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos
@@ -217,7 +222,7 @@ npm run dev
 | `backend/.env` | `COOKIE_SECURE` | `true` en producción (cookie solo por HTTPS) |
 | `backend/.env` | `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES` | Bloqueo por intentos fallidos (por defecto 5 intentos, 15 min) |
 | `.env` / `backend/.env` | `ALLOW_NEGATIVE_STOCK` | Permite que las salidas dejen stock negativo (por defecto `false`) |
-| `backend/.env` | `BUSINESS_TIMEZONE` | Zona horaria con la que los reportes agrupan por día (por defecto `America/Bogota`) |
+| `backend/.env` | `BUSINESS_TIMEZONE` | Zona horaria con la que los reportes agrupan por día y el dashboard define "hoy" (por defecto `America/Bogota`) |
 | `frontend/.env` | `VITE_API_URL` | URL base de la API |
 
 Los archivos `.env` nunca se versionan; mantener actualizados los `.env.example`.

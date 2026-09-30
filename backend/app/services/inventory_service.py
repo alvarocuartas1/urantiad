@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import case, select
+from sqlalchemy import Select, case, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import get_settings
@@ -229,14 +229,12 @@ def list_movements(
     return paginate(db, stmt, params)
 
 
-def list_replenishment(
-    db: Session,
-    params: PageParams,
+def replenishment_query(
     *,
     search: str | None = None,
     category_id: int | None = None,
     stock_status: StockStatus | None = None,
-) -> tuple[Sequence[Product], int]:
+) -> Select[tuple[Product]]:
     """Active physical products at or below their reorder point, most urgent first."""
     stmt = select(Product).where(
         Product.type == ProductType.PRODUCT,
@@ -252,5 +250,16 @@ def list_replenishment(
     priority = case(
         STOCK_STATUS_PRIORITY, value=Product.stock_status, else_=len(STOCK_STATUS_PRIORITY)
     )
-    stmt = stmt.options(selectinload(Product.category)).order_by(priority, Product.name, Product.id)
+    return stmt.options(selectinload(Product.category)).order_by(priority, Product.name, Product.id)
+
+
+def list_replenishment(
+    db: Session,
+    params: PageParams,
+    *,
+    search: str | None = None,
+    category_id: int | None = None,
+    stock_status: StockStatus | None = None,
+) -> tuple[Sequence[Product], int]:
+    stmt = replenishment_query(search=search, category_id=category_id, stock_status=stock_status)
     return paginate(db, stmt, params)

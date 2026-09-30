@@ -218,7 +218,7 @@ def _with_details(stmt: Select[tuple[Sale]]) -> Select[tuple[Sale]]:
     )
 
 
-def _can_read_all(user: User) -> bool:
+def can_read_all(user: User) -> bool:
     return PermissionCode.SALES_READ_ALL in user.permission_codes
 
 
@@ -230,7 +230,7 @@ def get_sale(db: Session, actor: User, sale_id: int) -> Sale:
     """A sale visible to `actor`: their own, or any with `sales.read_all` (404 otherwise, so
     other users' sales are not revealed)."""
     sale = db.scalar(_with_details(select(Sale)).where(Sale.id == sale_id))
-    if sale is None or (sale.user_id != actor.id and not _can_read_all(actor)):
+    if sale is None or (sale.user_id != actor.id and not can_read_all(actor)):
         raise _sale_not_found()
     return sale
 
@@ -250,7 +250,7 @@ def list_sales(
 ) -> tuple[Sequence[Sale], int]:
     """Sales, newest first. Without `sales.read_all`, only the actor's."""
     stmt = filter_date_range(select(Sale).join(Sale.customer), Sale.created_at, date_from, date_to)
-    if not _can_read_all(actor):
+    if not can_read_all(actor):
         user_id = actor.id
     if search and search.strip():
         pattern = contains_pattern(search.strip())
@@ -269,12 +269,16 @@ def list_sales(
         stmt = stmt.where(Sale.cash_session_id == cash_session_id)
     if user_id is not None:
         stmt = stmt.where(Sale.user_id == user_id)
-    stmt = stmt.options(
+    return paginate(db, newest_first(stmt), params)
+
+
+def newest_first(stmt: Select[tuple[Sale]]) -> Select[tuple[Sale]]:
+    """Order sales newest first, loading what `SaleSummary` shows."""
+    return stmt.options(
         selectinload(Sale.customer),
         selectinload(Sale.user),
         selectinload(Sale.cash_session).selectinload(CashSession.cash_register),
     ).order_by(Sale.created_at.desc(), Sale.id.desc())
-    return paginate(db, stmt, params)
 
 
 def list_payment_methods(db: Session) -> Sequence[PaymentMethod]:
