@@ -64,9 +64,13 @@ class CashRegister(TimestampMixin, Base):
 Index("uq_cash_registers_name_lower", func.lower(CashRegister.name), unique=True)
 
 
+CLOSING_FIELDS = ("closed_at", "closed_by_id", "expected_cash", "counted_cash", "difference")
+
+
 class CashSession(Base):
-    """Opening of a register by a user, with the initial cash. Closing arrives with the
-    cash count (Stage 9).
+    """Opening of a register by a user, with the initial cash, and its closing with the
+    cash count. A closing is final: `expected_cash` is the expected cash frozen when it was
+    closed and `difference = counted_cash - expected_cash` (positive = surplus).
 
     The partial unique indexes enforce that a register and a user have at most one open
     session each, even with concurrent openings.
@@ -76,6 +80,14 @@ class CashSession(Base):
     __table_args__ = (
         CheckConstraint(in_values("status", CashSessionStatus), name="status_valid"),
         CheckConstraint("opening_amount >= 0", name="opening_amount_non_negative"),
+        CheckConstraint(
+            f"(status = 'closed' AND {' AND '.join(f'{f} IS NOT NULL' for f in CLOSING_FIELDS)})"
+            f" OR (status = 'open' AND {' AND '.join(f'{f} IS NULL' for f in CLOSING_FIELDS)} "
+            "AND closing_notes IS NULL)",
+            name="closing_recorded",
+        ),
+        CheckConstraint("counted_cash >= 0", name="counted_cash_non_negative"),
+        CheckConstraint("difference = counted_cash - expected_cash", name="difference_consistent"),
         Index(
             "uq_cash_sessions_open_register",
             "cash_register_id",
@@ -101,9 +113,17 @@ class CashSession(Base):
     opening_amount: Mapped[Decimal]
     opening_notes: Mapped[str | None] = mapped_column(String(500))
     opened_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
+    closed_at: Mapped[datetime | None]
+    # The owner, or a supervisor closing a session someone left open.
+    closed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    expected_cash: Mapped[Decimal | None]
+    counted_cash: Mapped[Decimal | None]
+    difference: Mapped[Decimal | None]
+    closing_notes: Mapped[str | None] = mapped_column(String(500))
 
     cash_register: Mapped[CashRegister] = relationship()
-    user: Mapped[User] = relationship()
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    closed_by: Mapped[User | None] = relationship(foreign_keys=[closed_by_id])
 
 
 class CashMovement(Base):

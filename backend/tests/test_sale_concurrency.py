@@ -29,8 +29,9 @@ from app.models import (
     SalePayment,
     User,
 )
+from app.schemas.cash import CashSessionClose
 from app.schemas.sale import SaleCancel, SaleCreate
-from app.services import sale_service
+from app.services import cash_service, sale_service
 from tests.conftest import DEFAULT_PASSWORD_HASH
 
 THREAD_TIMEOUT_SECONDS = 10
@@ -116,20 +117,23 @@ def shop() -> Iterator[Shop]:
         _purge_committed_rows()
 
 
-def _run_concurrently(calls: list[tuple[int, Callable[[Session, User], Sale]]]) -> list[str]:
-    """Run each `(user_id, call)` in its own session, all starting at once; return the sale
-    numbers or error codes."""
+Call = Callable[[Session, User], str]
+
+
+def _run_concurrently(calls: list[tuple[int, Call]]) -> list[str]:
+    """Run each `(user_id, call)` in its own session, all starting at once; return what each
+    call returned (e.g. the sale number) or its error code."""
     barrier = threading.Barrier(len(calls))
     outcomes: list[str] = []
     errors: list[BaseException] = []
 
-    def run(user_id: int, call: Callable[[Session, User], Sale]) -> None:
+    def run(user_id: int, call: Call) -> None:
         try:
             with SessionLocal() as db:
                 actor = db.get_one(User, user_id)
                 barrier.wait()
                 try:
-                    outcomes.append(call(db, actor).number)
+                    outcomes.append(call(db, actor))
                 except AppError as exc:
                     outcomes.append(exc.code)
         except BaseException as exc:  # surfaced in the main thread
@@ -145,12 +149,12 @@ def _run_concurrently(calls: list[tuple[int, Callable[[Session, User], Sale]]]) 
     return outcomes
 
 
-def _sale_of(shop: Shop, product_id: int) -> Callable[[Session, User], Sale]:
+def _sale_of(shop: Shop, product_id: int) -> Call:
     data = SaleCreate(
         items=[{"product_id": product_id, "quantity": Decimal(1)}],
         payments=[{"payment_method_id": shop.cash_method_id, "amount": Decimal(1000)}],
     )
-    return lambda db, actor: sale_service.create_sale(db, actor, data)
+    return lambda db, actor: sale_service.create_sale(db, actor, data).number
 
 
 def test_last_unit_sold_twice_at_once_is_sold_once(shop: Shop) -> None:
@@ -181,11 +185,12 @@ def test_same_sale_cancelled_twice_at_once_is_reversed_once(shop: Shop) -> None:
     product_id = shop.product_ids[0]
     with SessionLocal() as db:
         seller = db.get_one(User, shop.user_ids[0])
-        sale_id = _sale_of(shop, product_id)(db, seller).id
+        sale_number = _sale_of(shop, product_id)(db, seller)
+        sale_id = db.scalars(select(Sale.id).where(Sale.number == sale_number)).one()
     data = SaleCancel(reason="Cancelación concurrente")
 
-    def cancel(db: Session, actor: User) -> Sale:
-        return sale_service.cancel_sale(db, actor, sale_id, data)
+    def cancel(db: Session, actor: User) -> str:
+        return sale_service.cancel_sale(db, actor, sale_id, data).number
 
     outcomes = _run_concurrently([(uid, cancel) for uid in shop.user_ids])
 
@@ -198,3 +203,28 @@ def test_same_sale_cancelled_twice_at_once_is_reversed_once(shop: Shop) -> None:
             )
         ).all()
         assert len(refunds) == 1
+
+
+def test_sale_and_closing_at_once_never_leave_cash_outside_the_count(shop: Shop) -> None:
+    """The cashier sells while their session is being closed with the expected cash seen
+    before the sale (0). Either the sale enters first and the closing is rejected because
+    the expected cash changed, or the closing wins and the sale finds no open session.
+    Without the session lock both succeed and the sale's cash is left out of the count."""
+    user_id = shop.user_ids[0]
+    with SessionLocal() as db:
+        session_id = db.scalars(select(CashSession.id).where(CashSession.user_id == user_id)).one()
+    data = CashSessionClose(counted_cash=Decimal(0), expected_cash=Decimal(0))
+
+    def close(db: Session, actor: User) -> str:
+        return cash_service.close_session(db, actor, session_id, data).status
+
+    outcomes = _run_concurrently([(user_id, _sale_of(shop, shop.product_ids[0])), (user_id, close)])
+
+    assert sorted(o.split("-")[0] for o in outcomes) in (
+        ["CASH_EXPECTED_CHANGED", "VENTA"],
+        ["NO_OPEN_CASH_SESSION", "closed"],
+    )
+    with SessionLocal() as db:
+        session = db.get_one(CashSession, session_id)
+        if session.status == "closed":
+            assert cash_service.summary(db, session).expected_cash == session.expected_cash

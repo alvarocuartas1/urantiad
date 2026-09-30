@@ -4,12 +4,13 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.permissions import RoleCode
 from app.models import CashMovement, CashRegister, CashSession, User
+from app.services import cash_service
 from tests.conftest import UserFactory
 
 AuthHeaders = Callable[[User], dict[str, str]]
@@ -54,6 +55,19 @@ def add_session(
         cash_register=register, user=user, opening_amount=opening_amount, **fields
     )
     db.add(session)
+    db.flush()
+    return session
+
+
+def mark_closed(db: Session, session: CashSession) -> CashSession:
+    """Close `session` directly in the database, counting exactly the expected cash."""
+    expected = cash_service.summary(db, session).expected_cash
+    session.status = "closed"
+    session.closed_at = func.now()
+    session.closed_by_id = session.user_id
+    session.expected_cash = expected
+    session.counted_cash = expected
+    session.difference = Decimal(0)
     db.flush()
     return session
 
@@ -262,7 +276,7 @@ def test_closed_sessions_do_not_block_a_new_opening(
     register: CashRegister,
     cashier: User,
 ) -> None:
-    add_session(db_session, register, cashier, Decimal(0), status="closed")
+    mark_closed(db_session, add_session(db_session, register, cashier, Decimal(0)))
     response = client.post(
         SESSIONS_URL,
         json={"cash_register_id": register.id, "opening_amount": "0"},
@@ -411,7 +425,7 @@ def test_movements_rejected_in_closed_session(
     register: CashRegister,
     cashier: User,
 ) -> None:
-    closed = add_session(db_session, register, cashier, Decimal(1000), status="closed")
+    closed = mark_closed(db_session, add_session(db_session, register, cashier, Decimal(1000)))
     response = post_movement(client, closed.id, cashier_headers, "income", "100")
     assert response.status_code == 409
     assert response.json()["code"] == "CASH_SESSION_CLOSED"
@@ -454,7 +468,19 @@ def test_session_list_includes_summaries_and_filters(
     register: CashRegister,
     cashier: User,
 ) -> None:
-    closed = add_session(db_session, register, cashier, Decimal(5000), status="closed")
+    # Inserted closed: the fixture's open session holds the same register and cashier.
+    closed = add_session(
+        db_session,
+        register,
+        cashier,
+        Decimal(5000),
+        status="closed",
+        closed_at=func.now(),
+        closed_by=cashier,
+        expected_cash=Decimal(3000),
+        counted_cash=Decimal(3000),
+        difference=Decimal(0),
+    )
     db_session.add(
         CashMovement(
             cash_session_id=closed.id,

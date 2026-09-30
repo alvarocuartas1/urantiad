@@ -15,7 +15,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 6 | Clientes | Terminada |
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
 | 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
-| 9 | Arqueo y cierre de caja | Pendiente |
+| 9 | Arqueo y cierre de caja | En curso (9a terminada) |
 | 10 | Auditoría | Pendiente |
 | 11 | Reportes | Pendiente |
 | 12 | Dashboard | Pendiente |
@@ -85,6 +85,8 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - POS (frontend): carrito en `useCart` (`useReducer` puro) y cálculos en `utils/sale.ts`, espejo del backend en centavos (`allocateCents`, IVA incluido). Una línea por producto: escanear de nuevo suma 1. El escáner se remonta tras cada producto (limpio y enfocado). Atajos F2 (cobrar) y F4 (cliente). El cobro usa RHF + Zod (`buildPaymentsSchema`): efectivo por defecto con foco en "Recibido". Si la venta falla, se recargan los productos del carrito (`GET /products/{id}`); con `PAYMENT_TOTAL_MISMATCH` se cierra el cobro para mostrar el total nuevo. Tras vender se invalidan ventas, caja y stock.
 - Foco tras cerrar un modal y abrir otro en el mismo render: enfocar desde un efecto (no `autoFocus`), porque la limpieza del modal que se cierra devuelve el foco a su elemento anterior después del `autoFocus`.
 - Los cambios hechos por otro usuario (p. ej. una anulación del administrador) aparecen en la pestaña del cajero al recargar o cuando vence el `staleTime` global de 30 s (política de toda la app).
+- Cierre de caja: columnas en `cash_sessions` (1:1, sin tabla aparte; arqueos parciales serían una tabla futura). CHECKs: campos de cierre presentes si y solo si `closed`, `counted_cash >= 0`, `difference = counted_cash − expected_cash`. `expected_cash` queda fijo al cerrar, calculado con la apertura bloqueada: ventas, movimientos y reintegros de anulación esperan o reciben `NO_OPEN_CASH_SESSION`/`CASH_SESSION_CLOSED`. El cliente envía el esperado que vio (409 `CASH_EXPECTED_CHANGED` si cambió). Observaciones obligatorias con diferencia (422 `CLOSING_NOTES_REQUIRED`). El cierre es definitivo. `cash.operate` cierra la propia; `cash.supervise` también las ajenas (`closed_by`). `closed_at` con `now()`.
+- Resumen de ventas de una apertura (`sale_service.session_sales_summary`): ventas `completed` más las anuladas **después** del cierre (`cancelled_at > closed_at`), para que muestre lo que había al cerrar. En tests, `now()` no avanza entre peticiones (una sola transacción): se retrasa `closed_at` a mano.
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -204,3 +206,11 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Compartidos: `divideHalfUp` pasa a `utils/decimal.ts`; `getProduct` en `services/products.ts`; `Button` acepta `ref`.
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: cajero sin caja → abre caja; escanea dos veces (cantidad 2) y un servicio; descuento de venta; F2, recibido y cambio; venta mixta Nequi + efectivo; stock insuficiente rechazado sin cambios; "Mi caja" con ventas en efectivo; admin anula y el reintegro aparece en la caja del cajero. Corregido: Enter en "Venta registrada" no iniciaba la siguiente venta (foco robado por el modal de cobro al cerrarse); título "Movimientos de caja".
 - 338 tests backend, 108 tests frontend.
+
+### Etapa 9a — Arqueo y cierre de caja (backend)
+- `cash_sessions` gana `closed_at`, `closed_by_id`, `expected_cash`, `counted_cash`, `difference` y `closing_notes` con CHECKs de consistencia; descripciones de `cash.operate` y `cash.supervise` actualizadas (migración `ac51be84502f`).
+- Endpoints `POST /cash-sessions/{id}/close` y `GET /cash-sessions/{id}/sales-summary` (ventas y pagos por método). Las aperturas devuelven `closing` y el listado filtra por `has_difference`. Colección Postman y README actualizados.
+- Test de concurrencia: venta y cierre simultáneos nunca dejan efectivo fuera del conteo (verificado fallando sin el bloqueo). `_run_concurrently` generalizado (cada llamada devuelve su resultado como texto).
+- Tests existentes que marcaban aperturas cerradas usan `mark_closed` (el CHECK exige los datos del cierre).
+- Frontend sin cambios (llega en la 9b).
+- 360 tests backend.

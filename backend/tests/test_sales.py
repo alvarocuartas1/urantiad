@@ -26,7 +26,7 @@ from app.models import (
 )
 from app.services.sale_service import allocate
 from tests.conftest import UserFactory
-from tests.test_cash import add_register, add_session, post_movement
+from tests.test_cash import add_register, add_session, mark_closed, post_movement
 from tests.test_categories import add_category
 from tests.test_customers import add_customer
 from tests.test_products import add_product
@@ -877,7 +877,7 @@ def test_cancel_after_the_session_closed_refunds_from_the_actor_session(
     water: Product,
 ) -> None:
     sale = sell(client, headers, [item(water)], [pay(db_session, "cash", "2000")])
-    session.status = "closed"
+    mark_closed(db_session, session)
     db_session.commit()  # the failed cancellation's rollback must not reopen it
 
     response = cancel(client, admin_headers, sale["id"])
@@ -900,8 +900,7 @@ def test_cancel_without_cash_needs_no_open_session(
     water: Product,
 ) -> None:
     sale = sell(client, headers, [item(water)], [pay(db_session, "transfer", "2000")])
-    session.status = "closed"
-    db_session.flush()
+    mark_closed(db_session, session)
 
     response = cancel(client, admin_headers, sale["id"])
 

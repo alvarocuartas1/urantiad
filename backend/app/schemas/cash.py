@@ -21,6 +21,7 @@ PositiveMoney = Annotated[
     Decimal, Field(gt=0, max_digits=14, decimal_places=2, examples=["50000.00"])
 ]
 OpeningNotes = Annotated[optional_text(500), Field(examples=["Base en billetes de 10.000."])]
+ClosingNotes = Annotated[optional_text(500), Field(examples=["Faltante por cambio mal dado."])]
 
 
 # --- Registers -----------------------------------------------------------------------
@@ -88,6 +89,31 @@ class CashSummary(BaseModel):
     )
 
 
+class CashSessionClose(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    counted_cash: Money = Field(description="Efectivo contado en la caja.")
+    expected_cash: Money = Field(
+        description="Efectivo esperado que vio quien cuenta. Si cambió mientras tanto (p. ej. "
+        "por una anulación), se rechaza con 409 `CASH_EXPECTED_CHANGED` para revisar de nuevo."
+    )
+    closing_notes: ClosingNotes = Field(
+        default=None, description="Obligatorias si hay diferencia (sobrante o faltante)."
+    )
+
+
+class CashSessionClosing(ORMModel):
+    closed_at: datetime
+    closed_by: UserSummary
+    expected_cash: Decimal = Field(description="Efectivo esperado al cerrar.")
+    counted_cash: Decimal
+    difference: Decimal = Field(
+        description="Contado - esperado: positiva = sobrante, negativa = faltante.",
+        examples=["-2000.00"],
+    )
+    closing_notes: str | None
+
+
 class CashSessionResponse(ORMModel):
     id: int
     cash_register: CashRegisterSummary
@@ -97,9 +123,11 @@ class CashSessionResponse(ORMModel):
     opening_notes: str | None
     opened_at: datetime
     summary: CashSummary
+    closing: CashSessionClosing | None = Field(description="Arqueo y cierre, si está cerrada.")
 
     @classmethod
     def build(cls, session: CashSession, summary: CashSummary) -> Self:
+        closed = session.status == CashSessionStatus.CLOSED
         return cls(
             id=session.id,
             cash_register=CashRegisterSummary.model_validate(session.cash_register),
@@ -109,6 +137,7 @@ class CashSessionResponse(ORMModel):
             opening_notes=session.opening_notes,
             opened_at=session.opened_at,
             summary=summary,
+            closing=CashSessionClosing.model_validate(session) if closed else None,
         )
 
 

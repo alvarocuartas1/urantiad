@@ -34,7 +34,15 @@ from app.models import (
     User,
 )
 from app.schemas.common import PageParams
-from app.schemas.sale import SaleCancel, SaleCreate, SaleItemInput, SalePaymentInput
+from app.schemas.sale import (
+    CashSessionSalesSummary,
+    PaymentMethodResponse,
+    PaymentMethodTotal,
+    SaleCancel,
+    SaleCreate,
+    SaleItemInput,
+    SalePaymentInput,
+)
 from app.services import cash_service, inventory_service, sequence_service
 from app.services.cash_service import format_money
 from app.services.query import contains_pattern, filter_date_range, paginate
@@ -275,6 +283,40 @@ def list_payment_methods(db: Session) -> Sequence[PaymentMethod]:
         .where(PaymentMethod.is_active.is_(True))
         .order_by(PaymentMethod.sort_order, PaymentMethod.id)
     ).all()
+
+
+def session_sales_summary(db: Session, actor: User, session_id: int) -> CashSessionSalesSummary:
+    """Sales of a session visible to `actor` (as in `cash_service.get_session`) and their
+    payments by method. A closed session counts the sales it had when it was closed."""
+    session = cash_service.get_session(db, actor, session_id)
+    counted = Sale.status == SaleStatus.COMPLETED
+    if session.closed_at is not None:
+        counted = or_(counted, Sale.cancelled_at > session.closed_at)
+    sales = select(Sale.id).where(Sale.cash_session_id == session.id, counted)
+
+    sales_count, total_sales = db.execute(
+        select(func.count(), func.coalesce(func.sum(Sale.total), ZERO)).where(Sale.id.in_(sales))
+    ).one()
+    rows = db.execute(
+        select(PaymentMethod, func.count(SalePayment.id), func.sum(SalePayment.amount))
+        .select_from(SalePayment)
+        .join(SalePayment.payment_method)
+        .where(SalePayment.sale_id.in_(sales))
+        .group_by(PaymentMethod.id)
+        .order_by(PaymentMethod.sort_order, PaymentMethod.id)
+    ).all()
+    return CashSessionSalesSummary(
+        sales_count=sales_count,
+        total_sales=total_sales,
+        by_method=[
+            PaymentMethodTotal(
+                payment_method=PaymentMethodResponse.model_validate(method),
+                payments_count=count,
+                total=total,
+            )
+            for method, count, total in rows
+        ],
+    )
 
 
 # --- Creation ------------------------------------------------------------------------

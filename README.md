@@ -98,9 +98,10 @@ docs/postman/      # colección "URANTIAD API"
 ### Caja
 
 - **Cajas** (`cash_registers`): nombre único sin distinguir mayúsculas, descripción y estado. No se eliminan; una caja abierta no se puede desactivar. La migración crea **"Caja Principal"**.
-- **Aperturas** (`cash_sessions`): caja, usuario, dinero inicial, observaciones y fecha. Una caja y un usuario tienen como máximo una apertura activa, garantizado por índices únicos parciales (`WHERE status = 'open'`) además de la validación del servicio. El cierre y el arqueo llegan en la Etapa 9.
+- **Aperturas** (`cash_sessions`): caja, usuario, dinero inicial, observaciones y fecha. Una caja y un usuario tienen como máximo una apertura activa, garantizado por índices únicos parciales (`WHERE status = 'open'`) además de la validación del servicio.
 - **Movimientos** (`cash_movements`): ingresos y retiros inmutables con concepto obligatorio, solo en la propia apertura activa. Las ventas registran sus propios movimientos (`sale`, `sale_cancellation`, enlazados con `sale_id`). **Efectivo esperado** = dinero inicial + ingresos + ventas en efectivo − retiros − anulaciones en efectivo. Un retiro no puede superar el efectivo esperado: la apertura se bloquea (`SELECT ... FOR UPDATE`) al registrarlo, así dos retiros simultáneos no dejan la caja en negativo.
-- Permisos `cash_registers.read` y `cash.operate` (administrador y cajero), `cash_registers.manage` y `cash.supervise` (administrador; ver las aperturas de todos).
+- **Arqueo y cierre**: se digita el efectivo contado y se guardan el esperado (fijado al cerrar, con la apertura bloqueada), el contado y la **diferencia = contado − esperado** (positiva = sobrante, negativa = faltante). Con diferencia, las observaciones son obligatorias. Si el esperado cambió mientras se contaba (por ejemplo, por una anulación), el cierre se rechaza para revisar de nuevo. El cierre es definitivo: la apertura ya no admite ventas ni movimientos y la caja queda libre. El resumen del cierre incluye las ventas por método de pago (solo el efectivo entra al conteo).
+- Permisos `cash_registers.read` y `cash.operate` (administrador y cajero), `cash_registers.manage` y `cash.supervise` (administrador; ver las aperturas de todos y cerrar las que alguien dejó abiertas).
 - En el frontend:
   - `/caja` "Mi caja": abrir una caja (las ocupadas aparecen deshabilitadas con quién las tiene), resumen con el efectivo esperado, registrar ingresos y retiros, y lista de movimientos.
   - `/cajas`: listado con quién tiene abierta cada caja; crear, editar y desactivar (administrador).

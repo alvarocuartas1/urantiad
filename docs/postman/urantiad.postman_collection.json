@@ -1991,7 +1991,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/cash-sessions?page=1&size=20&cash_register_id=&user_id=&status=&date_from=&date_to=",
+              "raw": "{{baseUrl}}/cash-sessions?page=1&size=20&cash_register_id=&user_id=&status=&has_difference=&date_from=&date_to=",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2020,6 +2020,10 @@
                   "value": ""
                 },
                 {
+                  "key": "has_difference",
+                  "value": ""
+                },
+                {
                   "key": "date_from",
                   "value": ""
                 },
@@ -2029,7 +2033,7 @@
                 }
               ]
             },
-            "description": "Permiso cash.operate. Sin cash.supervise solo devuelve las propias (user_id se ignora). Filtros: caja, usuario, estado (open|closed) y fechas con zona horaria. Paginado, más recientes primero."
+            "description": "Permiso cash.operate. Sin cash.supervise solo devuelve las propias (user_id se ignora). Filtros: caja, usuario, estado (open|closed), has_difference (cerradas con sobrante o faltante) y fechas con zona horaria. Paginado, más recientes primero."
           },
           "event": [
             {
@@ -2149,6 +2153,79 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resumen de ventas de la apertura",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/{{cashSessionId}}/sales-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "{{cashSessionId}}",
+                "sales-summary"
+              ]
+            },
+            "description": "Permiso cash.operate (propia apertura; cualquiera con cash.supervise). Número y total de ventas y pagos por método de pago. En una apertura cerrada, las ventas que tenía al cerrarse: una anulación posterior no la modifica."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cerrar caja (arqueo)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/cash-sessions/{{cashSessionId}}/close",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cash-sessions",
+                "{{cashSessionId}}",
+                "close"
+              ]
+            },
+            "description": "Permiso cash.operate: cierra la propia apertura; con cash.supervise también la de otro usuario. Guarda el esperado, el contado y la diferencia (contado - esperado). expected_cash es el esperado que vio quien cuenta: si cambió, 409 CASH_EXPECTED_CHANGED. Con diferencia, closing_notes es obligatorio (422 CLOSING_NOTES_REQUIRED). Ya cerrada: 409 CASH_SESSION_CLOSED. El cierre es definitivo.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"counted_cash\": \"148000.00\",\n  \"expected_cash\": \"150000.00\",\n  \"closing_notes\": \"Faltante por cambio mal dado.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }

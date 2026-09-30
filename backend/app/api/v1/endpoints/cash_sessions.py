@@ -11,11 +11,13 @@ from app.schemas.cash import (
     CashMovementCreate,
     CashMovementResponse,
     CashMovementResult,
+    CashSessionClose,
     CashSessionOpen,
     CashSessionResponse,
 )
 from app.schemas.common import Page, PageParams, page_params
-from app.services import cash_service
+from app.schemas.sale import CashSessionSalesSummary
+from app.services import cash_service, sale_service
 
 router = APIRouter(prefix="/cash-sessions", tags=["cash"])
 
@@ -50,6 +52,10 @@ def list_sessions(
         int | None, Query(gt=0, description="Solo con `cash.supervise`; si no, se ignora.")
     ] = None,
     status: CashSessionStatus | None = None,
+    has_difference: Annotated[
+        bool | None,
+        Query(description="`true`: cerradas con sobrante o faltante; `false`: el resto."),
+    ] = None,
     date_from: Annotated[
         AwareDatetime | None, Query(description="Abiertas desde (incluido), con zona horaria.")
     ] = None,
@@ -66,6 +72,7 @@ def list_sessions(
         cash_register_id=cash_register_id,
         user_id=user_id,
         status=status,
+        has_difference=has_difference,
         date_from=date_from,
         date_to=date_to,
     )
@@ -81,6 +88,25 @@ def list_sessions(
 @router.get("/{session_id}", response_model=CashSessionResponse)
 def get_session(session_id: int, actor: CashOperator, db: DbSession) -> CashSessionResponse:
     return _session_response(db, cash_service.get_session(db, actor, session_id))
+
+
+@router.get("/{session_id}/sales-summary", response_model=CashSessionSalesSummary)
+def get_sales_summary(
+    session_id: int, actor: CashOperator, db: DbSession
+) -> CashSessionSalesSummary:
+    """Ventas de la apertura y sus pagos por método de pago. En una apertura cerrada, las
+    ventas que tenía al cerrarse (una anulación posterior no la modifica)."""
+    return sale_service.session_sales_summary(db, actor, session_id)
+
+
+@router.post("/{session_id}/close", response_model=CashSessionResponse)
+def close_session(
+    session_id: int, body: CashSessionClose, actor: CashOperator, db: DbSession
+) -> CashSessionResponse:
+    """Arqueo y cierre: guarda el efectivo esperado, el contado y la diferencia (contado -
+    esperado). Se cierra la propia apertura; con `cash.supervise`, también la de otro
+    usuario. El cierre es definitivo: después no admite ventas ni movimientos."""
+    return _session_response(db, cash_service.close_session(db, actor, session_id, body))
 
 
 @router.get("/{session_id}/movements", response_model=Page[CashMovementResponse])

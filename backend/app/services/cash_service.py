@@ -1,8 +1,10 @@
-"""Cash registers, openings (sessions) and cash movements.
+"""Cash registers, openings (sessions), cash movements and closings.
 
 `record_cash_movement` is the only code that adds cash movements; sales reuse it inside
 their own transaction, so it never commits. The session row is locked while the
-expected cash is checked, so concurrent withdrawals cannot leave it negative.
+expected cash is checked, so concurrent withdrawals cannot leave it negative. Closing locks
+it too, so the expected cash it freezes includes every committed movement and no sale or
+movement can enter the session afterwards.
 """
 
 from collections.abc import Sequence
@@ -28,6 +30,7 @@ from app.schemas.cash import (
     CashMovementCreate,
     CashRegisterCreate,
     CashRegisterUpdate,
+    CashSessionClose,
     CashSessionOpen,
     CashSummary,
 )
@@ -128,9 +131,15 @@ def update_register(db: Session, register_id: int, data: CashRegisterUpdate) -> 
 # --- Sessions ------------------------------------------------------------------------
 
 
+def _session_closed() -> ConflictError:
+    return ConflictError("La apertura de caja ya está cerrada.", code="CASH_SESSION_CLOSED")
+
+
 def _session_query() -> Select[tuple[CashSession]]:
     return select(CashSession).options(
-        selectinload(CashSession.cash_register), selectinload(CashSession.user)
+        selectinload(CashSession.cash_register),
+        selectinload(CashSession.user),
+        selectinload(CashSession.closed_by),
     )
 
 
@@ -255,6 +264,7 @@ def list_sessions(
     cash_register_id: int | None = None,
     user_id: int | None = None,
     status: CashSessionStatus | None = None,
+    has_difference: bool | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
 ) -> tuple[Sequence[CashSession], int]:
@@ -268,6 +278,10 @@ def list_sessions(
         stmt = stmt.where(CashSession.cash_register_id == cash_register_id)
     if status is not None:
         stmt = stmt.where(CashSession.status == status)
+    if has_difference is not None:
+        # Open sessions have no difference yet: `difference <> 0` is NULL, never true.
+        with_difference = func.coalesce(CashSession.difference != 0, False)
+        stmt = stmt.where(with_difference == has_difference)
     stmt = stmt.order_by(CashSession.opened_at.desc(), CashSession.id.desc())
     return paginate(db, stmt, params)
 
@@ -297,7 +311,7 @@ def record_cash_movement(
     each other. Outgoing movements cannot exceed the expected cash.
     """
     if session.status != CashSessionStatus.OPEN:
-        raise ConflictError("La apertura de caja ya está cerrada.", code="CASH_SESSION_CLOSED")
+        raise _session_closed()
     if not movement_type.is_inbound:
         available = summary(db, session).expected_cash
         if amount > available:
@@ -346,3 +360,37 @@ def list_movements(
         .order_by(CashMovement.created_at.desc(), CashMovement.id.desc())
     )
     return paginate(db, stmt, params)
+
+
+# --- Closing -------------------------------------------------------------------------
+
+
+def close_session(db: Session, actor: User, session_id: int, data: CashSessionClose) -> CashSession:
+    """Close a session with the counted cash: the owner closes their own and a supervisor
+    any open one (for a session someone left open). The expected cash is frozen with the
+    session locked; a closing is final."""
+    session = get_session(db, actor, session_id, for_update=True)
+    if session.status != CashSessionStatus.OPEN:
+        raise _session_closed()
+    expected = summary(db, session).expected_cash
+    if data.expected_cash != expected:
+        raise ConflictError(
+            f"El efectivo esperado cambió a {format_money(expected)}. Revise el conteo.",
+            code="CASH_EXPECTED_CHANGED",
+        )
+    difference = data.counted_cash - expected
+    if difference != 0 and data.closing_notes is None:
+        raise AppError(
+            "Explique en las observaciones el sobrante o faltante.",
+            code="CLOSING_NOTES_REQUIRED",
+            status_code=422,
+        )
+    session.status = CashSessionStatus.CLOSED
+    session.closed_at = func.now()
+    session.closed_by = actor
+    session.expected_cash = expected
+    session.counted_cash = data.counted_cash
+    session.difference = difference
+    session.closing_notes = data.closing_notes
+    db.commit()
+    return get_session(db, actor, session.id)

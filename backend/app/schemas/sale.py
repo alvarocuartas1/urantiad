@@ -171,3 +171,23 @@ class SaleResponse(SaleSummary):
             items = [item.model_copy(update={"unit_cost": None}) for item in response.items]
             response = response.model_copy(update={"items": items})
         return response
+
+
+# --- Cash session summary ------------------------------------------------------------
+
+
+class PaymentMethodTotal(BaseModel):
+    payment_method: PaymentMethodResponse
+    payments_count: int
+    total: Decimal
+
+
+class CashSessionSalesSummary(BaseModel):
+    """Sales of a cash session. For a closed session, as they were when it was closed: a
+    sale cancelled afterwards still counts (its cash was refunded from another session)."""
+
+    sales_count: int
+    total_sales: Decimal
+    by_method: list[PaymentMethodTotal] = Field(
+        description="Pagos por método (solo los usados). Solo el efectivo entra al arqueo."
+    )
