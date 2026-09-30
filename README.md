@@ -148,6 +148,13 @@ docs/postman/      # colección "URANTIAD API"
 - `GET /api/v1/dashboard` (requiere sesión, sin permiso propio): resumen del día en la hora del negocio (`BUSINESS_TIMEZONE`). Cada sección llega en `null` sin el permiso de su área: ventas del día y por método de pago, y ventas recientes (`sales.read`; el cajero solo ve las suyas), estado de las cajas activas (`cash_registers.read`; efectivo esperado solo con `cash.supervise`), productos agotados y por reponer (`inventory.read`) y compras recientes (`purchases.read`, sin borradores).
 - En el frontend, la página de inicio (`/`) muestra las secciones permitidas y se recarga cada minuto mientras la pestaña está visible.
 
+### Estadísticas
+
+- Periodos en días locales (`date_from` y `date_to` incluidos, hora de `BUSINESS_TIMEZONE`); solo ventas completadas; margen solo con `products.view_costs`. Las ventas por categoría y por método de pago se obtienen del reporte de ventas.
+- `GET /api/v1/statistics/sales-trend` (`sales.read_all`): ventas por día, semana (desde el lunes) o mes; el rango se amplía a periodos completos y los periodos sin ventas llegan en cero (máximo 400 puntos, 422 `STATISTICS_RANGE_TOO_LARGE`).
+- `GET /api/v1/statistics/top-products` (`sales.read_all`): productos y servicios más vendidos por unidades o por valor.
+- `GET /api/v1/statistics/inventory-rotation` (`inventory.read`, paginado): por producto físico activo, rotación = unidades vendidas / promedio del stock al inicio y al final del periodo, y días de inventario = stock final / venta diaria del periodo. El stock de una fecha se reconstruye con el stock actual menos lo que sumaron los movimientos posteriores.
+
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 
 ## Requisitos

@@ -69,16 +69,16 @@ ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
 
 
-def _money(value: Decimal | None) -> Decimal:
+def money(value: Decimal | None) -> Decimal:
     return (value or ZERO).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def _local_day(column: ColumnElement[datetime]) -> ColumnElement[date]:
+def local_day(column: ColumnElement[datetime]) -> ColumnElement[date]:
     """Calendar day of `column` in the business's time zone."""
     return cast(func.timezone(get_settings().business_timezone, column), Date)
 
 
-def _can_view_costs(user: User) -> bool:
+def can_view_costs(user: User) -> bool:
     return PermissionCode.PRODUCTS_VIEW_COSTS in user.permission_codes
 
 
@@ -108,7 +108,7 @@ class _Group:
 
 
 def _day_group(column: ColumnElement[datetime]) -> _Group:
-    day = _local_day(column)
+    day = local_day(column)
     return _Group(day, day, chronological=True)
 
 
@@ -202,16 +202,16 @@ def _sales_metrics(
     values: Sequence[Any], *, with_quantity: bool, with_costs: bool
 ) -> dict[str, Any]:
     count, quantity, total, discount, tax, cost = values
-    total, tax = _money(total), _money(tax)
+    total, tax = money(total), money(tax)
     net = total - tax
-    cost = _money(cost)
+    cost = money(cost)
     margin = net - cost
     percent = (margin / net * 100).quantize(CENT, rounding=ROUND_HALF_UP) if net else None
     return {
         "sales_count": count,
-        "quantity": _money(quantity) if with_quantity else None,
+        "quantity": money(quantity) if with_quantity else None,
         "total": total,
-        "discount_total": _money(discount),
+        "discount_total": money(discount),
         "tax_total": tax,
         "net_total": net,
         "cost_total": cost if with_costs else None,
@@ -239,7 +239,7 @@ def _payment_rows(
     empty = dict.fromkeys(SalesMetrics.model_fields, None)
     items = [
         SalesReportRow(
-            **_group_fields(row), **{**empty, "sales_count": row[3], "total": _money(row[4])}
+            **_group_fields(row), **{**empty, "sales_count": row[3], "total": money(row[4])}
         )
         for row in rows
     ]
@@ -258,7 +258,7 @@ def sales_report(
 
     Built on the sale lines, whose totals add up to the sale total, so every grouping
     adds up to the same summary. Sales cancelled later are left out and counted apart."""
-    with_costs = _can_view_costs(actor)
+    with_costs = can_view_costs(actor)
     if group_by == SalesGroupBy.PAYMENT_METHOD:
         if filters.by_line:
             raise _reject_filter(
@@ -310,7 +310,7 @@ def sales_report(
             else None
         ),
         cancelled_count=summary_row[6],
-        cancelled_total=_money(summary_row[7]),
+        cancelled_total=money(summary_row[7]),
     )
     return items, count, summary
 
@@ -379,11 +379,11 @@ def _purchases_values(values: Sequence[Any], *, with_quantity: bool) -> dict[str
     count, quantity, subtotal, discount, tax, total = values
     return {
         "purchases_count": count,
-        "quantity": _money(quantity) if with_quantity else None,
-        "subtotal": _money(subtotal),
-        "discount_total": _money(discount),
-        "tax_total": _money(tax),
-        "total": _money(total),
+        "quantity": money(quantity) if with_quantity else None,
+        "subtotal": money(subtotal),
+        "discount_total": money(discount),
+        "tax_total": money(tax),
+        "total": money(total),
     }
 
 
@@ -425,7 +425,7 @@ def purchases_report(
     summary = PurchasesReportSummary(
         **_purchases_values(summary_row[:6], with_quantity=filters.product_id is not None),
         cancelled_count=summary_row[6],
-        cancelled_total=_money(summary_row[7]),
+        cancelled_total=money(summary_row[7]),
     )
     return items, count, summary
 
@@ -456,7 +456,7 @@ def _inventory_values(values: Sequence[Any], *, with_costs: bool) -> dict[str, A
         "critical_count": critical,
         "low_count": low,
         "ok_count": ok,
-        "inventory_value": _money(value) if with_costs else None,
+        "inventory_value": money(value) if with_costs else None,
     }
 
 
@@ -464,7 +464,7 @@ def inventory_report(
     db: Session, actor: User, params: PageParams, *, category_id: int | None = None
 ) -> tuple[list[InventoryReportRow], int, InventoryReportSummary]:
     """Current stock levels and value of the active physical products, by category."""
-    with_costs = _can_view_costs(actor)
+    with_costs = can_view_costs(actor)
 
     def active_products(*columns: Any) -> Select[Any]:
         stmt = select(*columns, *_inventory_metrics()).where(
@@ -585,7 +585,7 @@ def _cash_values(values: Sequence[Any]) -> dict[str, Any]:
     return {
         "sessions_count": count,
         "open_count": open_count,
-        **{name: _money(amount) for name, amount in zip(_CASH_AMOUNTS, amounts, strict=True)},
+        **{name: money(amount) for name, amount in zip(_CASH_AMOUNTS, amounts, strict=True)},
         "sessions_with_difference": with_difference,
     }
 

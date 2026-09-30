@@ -19,13 +19,14 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 10 | Auditoría | Terminada |
 | 11 | Reportes | Terminada |
 | 12 | Dashboard | Terminada |
-| 13 | Estadísticas, pulido final, README y despliegue | Pendiente |
+| 13 | Estadísticas, pulido final, README y despliegue (13a backend de estadísticas terminada; 13b frontend, 13c pulido, 13d despliegue) | En curso |
 
 Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b interfaz del POS).
 
 ## Pendientes anotados
 
-- **Etapa 13 (o antes del despliegue):** IP y navegador en `audit_logs` (`ip_address`, `user_agent`), capturados con un middleware y una variable de contexto, sin cambiar firmas de servicios.
+- **Plan aprobado de la Etapa 13:** 13b gráficos con Recharts en una página cargada bajo demanda (`React.lazy`, para no pesar en el POS); 13c administración de métodos de pago (`payment_methods.manage`, efectivo no desactivable, auditada) e IP y navegador en la auditoría; 13d despliegue en VPS con Docker: backend de producción, Caddy (HTTPS automático, sirve el frontend y hace de proxy de `/api`, mismo origen), `docker-compose.prod.yml`, respaldos con `pg_dump`, build de imágenes en CI y README final.
+- **Etapa 13c:** IP y navegador en `audit_logs` (`ip_address`, `user_agent`), capturados con un middleware y una variable de contexto, sin cambiar firmas de servicios.
 - **Cuando haya datos reales en producción:** política de retención de la auditoría (tarea en modo `app.audit_maintenance`). Consultar antes con el contador el tiempo legal de conservación.
 - **Al llegar funciones que dependan de clientes (crédito, facturación electrónica):** auditar clientes. Categorías y cajas quedan sin auditar salvo que se necesite.
 
@@ -105,6 +106,7 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Frontend de reportes: `/reportes/:tab` (`ventas`, `compras`, `inventario`, `caja`); `/reportes` o una pestaña sin permiso redirige a la primera permitida. Permisos "cualquiera de" con `PermissionRequirement` + `meetsRequirement` (ruta y menú). Hooks con `staleTime: 0` (como auditoría) y datos previos **solo con la misma agrupación** (`sameGrouping`): filas de otra agrupación no encajan en las columnas nuevas (un id formateado como fecha rompía la página). Periodo por defecto: mes en curso en hora de Bogotá (`currentMonthDates`). Por método de pago se ocultan y limpian los filtros de categoría y producto. Costos y márgenes solo con `products.view_costs`. `ReportResults` + `ReportTable` genéricos con columnas declarativas (`columns.tsx`).
 - Exportación de reportes: CSV (sin `openpyxl`; un .xlsx con formato podría añadirse sobre las mismas columnas) generado en el backend (`report_export`) con las mismas consultas de `report_service` (una página de `EXPORT_LIMIT` = 10.000 grupos; si hay más, 422 `REPORT_TOO_LARGE`). Formato para Excel en español: UTF-8 con BOM, `;`, coma decimal sin miles, nulos vacíos, fila final "Total" con el resumen; sin `products.view_costs` no hay columnas de costo. Nombre con el periodo en hora local (`ventas-por-dia_2026-09-01_2026-09-30.csv`; inventario con la fecha del día). Filtros como dependencias compartidas entre cada reporte y su exportación. CORS con `expose_headers=["Content-Disposition"]`. Frontend: `apiDownload` comparte con `apiRequest` el envío y el reintento tras 401 (`withSessionRetry`); `saveFile` descarga con una URL temporal. Las exportaciones no se auditan (son lecturas).
 - Dashboard: un solo endpoint `GET /dashboard` (una petición; permisos resueltos en el servidor) sin permiso propio: cada sección es `null` sin el permiso de su área, así no muestra más que los listados. "Hoy" = día local de `BUSINESS_TIMEZONE` calculado en el servidor (`dashboard_service.business_day`, `now` inyectable en tests). Ventas del día sobre `sales` (solo `completed`; anuladas aparte) con alcance `own` sin `sales.read_all` (el cajero ve sus ventas). Cajas activas con `expected_cash` solo con `cash.supervise` (`cash_service.summaries`, una consulta). Stock: conteo por nivel + 5 más urgentes (`inventory_service.replenishment_query`, compartida con el listado). Compras recientes: confirmadas o anuladas por `confirmed_at` (sin borradores). `sale_service.newest_first` y `can_read_all` compartidos.
+- Estadísticas: sin tablas ni permisos nuevos (`sales.read_all` para ventas, `inventory.read` para rotación; margen con `products.view_costs`). Periodos como **fechas locales** (`date`, ambas incluidas; el servidor calcula los límites en `BUSINESS_TIMEZONE`), a diferencia de los reportes (`AwareDatetime`): una serie necesita días, semanas y meses de calendario. La tendencia amplía el rango a periodos completos (semana ISO desde el lunes) y rellena con cero los periodos sin ventas (máx. 400 puntos). Por categoría y método de pago se reutiliza `/reports/sales`. Rotación = vendidas / promedio de stock inicial y final (negativos como 0; nula sin stock); días de inventario = stock final × días transcurridos / vendidas. Stock en una fecha = stock actual − suma de `stock_after − stock_before` desde entonces (no depende del orden de movimientos con el mismo `now()`). Limitación conocida: un producto que entra y sale dentro del periodo con stock 0 en ambos extremos queda con rotación nula. `report_service.money`, `local_day` y `can_view_costs` pasan a públicas.
 - Frontend del dashboard: `useDashboard` con `staleTime: 0` y `refetchInterval` de 60 s (TanStack lo pausa con la pestaña oculta). Barras de métodos de pago con CSS y porcentaje en texto (`sharePercent`, centavos); sin librería de gráficos hasta la etapa de estadísticas. Filas de listas sin `flex-wrap` y columna derecha `shrink-0` (en móvil, el monto y la insignia saltaban a la izquierda).
 
 ## Registro de etapas terminadas
@@ -280,3 +282,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Colección Postman y README actualizados.
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: datos por API (compras, borrador, ventas en efectivo y mixta, anulación); totales, porcentajes, esperado de caja, borrador excluido, enlaces a reposición y a la venta; cajero ("Mis ventas de hoy", sin stock ni compras), bodega (solo stock y compras), móvil sin scroll horizontal. Corregido: en móvil el monto y la insignia de las filas saltaban a la izquierda.
 - 421 tests backend, 140 tests frontend.
+
+### Etapa 13a — Estadísticas (backend)
+- Endpoints `GET /statistics/sales-trend` (día, semana o mes con periodos vacíos en cero), `/statistics/top-products` (por unidades o valor, filtro de categoría) y `/statistics/inventory-rotation` (paginado, más lentos o más rápidos primero, filtro de categoría). `statistics_service` y `schemas/statistics.py`. Sin cambios de base de datos ni permisos nuevos.
+- Colección Postman (carpeta Statistics) y README actualizados.
+- Frontend sin cambios (llega en la 13b).
+- 438 tests backend.
