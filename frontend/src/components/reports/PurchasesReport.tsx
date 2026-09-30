@@ -3,6 +3,7 @@ import { FilterSelect } from '@/components/ui/ListFilters'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveCategories } from '@/hooks/useCategories'
 import { usePurchasesReport } from '@/hooks/useReports'
+import { exportPurchasesReport } from '@/services/reports'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { PERMISSIONS } from '@/types/auth'
 import type { Product } from '@/types/catalog'
@@ -12,6 +13,7 @@ import { formatCurrency } from '@/utils/format'
 import { businessDayRange } from '@/utils/inventory'
 import { currentMonthDates, PURCHASES_GROUP_LABELS } from '@/utils/report'
 import { countColumn, groupColumn, moneyColumn, quantityColumn } from './columns'
+import { ExportButton } from './ExportButton'
 import { ProductFilter } from './ProductFilter'
 import { ReportResults } from './ReportResults'
 import type { ReportColumn } from './ReportTable'
@@ -81,14 +83,17 @@ export function PurchasesReport() {
 
   const suppliers = useSuppliers(SUPPLIERS_FOR_FILTER, { enabled: canListSuppliers })
   const { categories } = useActiveCategories()
-  const { data, isPending, error, isFetching } = usePurchasesReport({
-    page,
-    size: PAGE_SIZE,
+  const reportParams = {
     group_by: filters.groupBy,
     ...businessDayRange(filters.from, filters.to),
     supplier_id: filters.supplierId ? Number(filters.supplierId) : undefined,
     category_id: filters.categoryId ? Number(filters.categoryId) : undefined,
     product_id: filters.product?.id,
+  }
+  const { data, isPending, error, isFetching } = usePurchasesReport({
+    page,
+    size: PAGE_SIZE,
+    ...reportParams,
   })
 
   const updateFilters = (changes: Partial<Filters>) => {
@@ -141,6 +146,7 @@ export function PurchasesReport() {
           product={filters.product}
           onChange={(product) => updateFilters({ product })}
         />
+        <ExportButton onExport={() => exportPurchasesReport(reportParams)} />
       </ReportToolbar>
 
       <ReportResults

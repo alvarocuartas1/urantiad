@@ -30,6 +30,8 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Lets the frontend read the name of downloaded files (report exports).
+        expose_headers=["Content-Disposition"],
     )
     register_exception_handlers(app)
     app.include_router(api_router, prefix=API_V1_PREFIX)

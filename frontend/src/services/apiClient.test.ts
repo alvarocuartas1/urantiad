@@ -1,5 +1,6 @@
 import {
   ApiError,
+  apiDownload,
   apiRequest,
   refreshSession,
   setAccessToken,
@@ -96,6 +97,50 @@ describe('apiClient', () => {
     await expect(apiRequest('/health')).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
       message: 'No se pudo conectar con el servidor.',
+    })
+  })
+
+  describe('apiDownload', () => {
+    const csv = () =>
+      new Response('﻿Día;Total\r\n', {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="ventas-por-dia_2026-09-01_2026-09-30.csv"',
+        },
+      })
+
+    it('returns the file with the name sent by the server', async () => {
+      fetchMock.mockResolvedValueOnce(csv())
+
+      const file = await apiDownload('/reports/sales/export', { group_by: 'day' })
+
+      expect(file.filename).toBe('ventas-por-dia_2026-09-01_2026-09-30.csv')
+      expect(await file.blob.text()).toContain('Día;Total')
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/reports/sales/export?group_by=day')
+    })
+
+    it('renews the session after a 401 like any other request', async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(401, unauthorized))
+        .mockResolvedValueOnce(jsonResponse(200, session))
+        .mockResolvedValueOnce(csv())
+
+      const file = await apiDownload('/reports/sales/export')
+
+      expect(file.filename).toContain('ventas-por-dia')
+      expect(authHeader(fetchMock.mock.calls[2] ?? [])).toBe('Bearer new-token')
+    })
+
+    it('turns an error response into an ApiError', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(422, { detail: 'Acote el periodo.', code: 'REPORT_TOO_LARGE' }),
+      )
+
+      await expect(apiDownload('/reports/sales/export')).rejects.toMatchObject({
+        code: 'REPORT_TOO_LARGE',
+        message: 'Acote el periodo.',
+      })
     })
   })
 })

@@ -13,6 +13,9 @@ export interface ReportGroup {
   code: string | null
 }
 
+/** The parameters of a report without the page: an export has every group. */
+export type ReportExportParams<P extends { page: number; size: number }> = Omit<P, 'page' | 'size'>
+
 interface PeriodParams {
   page: number
   size: number

@@ -140,7 +140,8 @@ docs/postman/      # colección "URANTIAD API"
 - `GET /api/v1/reports/inventory` (`inventory.read`): productos físicos activos por nivel de stock y valor del inventario al costo promedio, por categoría.
 - `GET /api/v1/reports/cash` (`cash.supervise`): aperturas por día, caja o cajero: movimientos, esperado y contado, sobrantes y faltantes por separado.
 - Los permisos son los del listado de cada área: un reporte no muestra nada que ese usuario no pueda consultar ya.
-- En el frontend, `/reportes` "Reportes" con una pestaña por área (solo las permitidas): agrupación, periodo (por defecto el mes en curso), filtros de cajero, caja, categoría, proveedor y producto, tarjetas de resumen y la tabla agrupada y paginada. La pestaña de inventario enlaza a productos, reposición y movimientos.
+- **Exportación a CSV** (`GET /api/v1/reports/{sales|purchases|inventory|cash}/export`, mismos permisos y filtros, sin paginación): archivo para Excel en español (UTF-8 con BOM, separador `;`, coma decimal) con las mismas columnas de la pantalla, todas las filas y una fila final "Total". Máximo 10.000 filas (422 `REPORT_TOO_LARGE`). CORS expone `Content-Disposition` para que el frontend lea el nombre del archivo.
+- En el frontend, `/reportes` "Reportes" con una pestaña por área (solo las permitidas): agrupación, periodo (por defecto el mes en curso), filtros de cajero, caja, categoría, proveedor y producto, tarjetas de resumen y la tabla agrupada y paginada. La pestaña de inventario enlaza a productos, reposición y movimientos. Cada pestaña tiene el botón "Exportar CSV" con los filtros en pantalla.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

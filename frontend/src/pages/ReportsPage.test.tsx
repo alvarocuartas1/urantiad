@@ -1,18 +1,26 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
+import { ApiError } from '@/services/apiClient'
 import { listCashRegisters } from '@/services/cash'
 import { listCategories } from '@/services/categories'
-import { getCashReport, getPurchasesReport, getSalesReport } from '@/services/reports'
+import {
+  exportSalesReport,
+  getCashReport,
+  getPurchasesReport,
+  getSalesReport,
+} from '@/services/reports'
 import { listSuppliers } from '@/services/suppliers'
 import { adminUser, buildAuth, renderWithProviders } from '@/test/renderWithProviders'
 import type { CashReportRow, SalesReportRow, SalesReportSummary } from '@/types/report'
+import { saveFile } from '@/utils/download'
 import ReportsPage from './ReportsPage'
 
 vi.mock('@/services/reports')
 vi.mock('@/services/categories')
 vi.mock('@/services/cash')
 vi.mock('@/services/suppliers')
+vi.mock('@/utils/download')
 
 const page = <T,>(items: T[]) => ({ items, total: items.length, page: 1, size: 20 })
 
@@ -181,5 +189,42 @@ describe('ReportsPage', () => {
     // Rows of another grouping are never shown under the new columns (ids as dates).
     await user.selectOptions(screen.getByRole('combobox', { name: 'Agrupar por' }), 'day')
     expect(await screen.findByRole('row', { name: /30 sept 2026/ })).toBeInTheDocument()
+  })
+
+  it('exports the report on screen with its filters, without the page', async () => {
+    const user = userEvent.setup()
+    const file = { blob: new Blob(['csv']), filename: 'ventas-por-metodo-de-pago.csv' }
+    vi.mocked(exportSalesReport).mockResolvedValue(file)
+    renderReports(['sales.read_all'], '/reportes/ventas')
+    await screen.findByText('Total vendido')
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Agrupar por' }),
+      'payment_method',
+    )
+    await user.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+
+    await waitFor(() => expect(saveFile).toHaveBeenCalledWith(file))
+    const params = vi.mocked(exportSalesReport).mock.calls[0]?.[0]
+    expect(params).toMatchObject({
+      group_by: 'payment_method',
+      date_from: '2026-09-01T00:00:00-05:00',
+      date_to: '2026-10-01T00:00:00-05:00',
+    })
+    expect(params).not.toHaveProperty('page')
+  })
+
+  it('shows why an export failed', async () => {
+    const user = userEvent.setup()
+    vi.mocked(exportSalesReport).mockRejectedValue(
+      new ApiError(422, { detail: 'Acote el periodo o los filtros.', code: 'REPORT_TOO_LARGE' }),
+    )
+    renderReports(['sales.read_all'], '/reportes/ventas')
+    await screen.findByText('Total vendido')
+
+    await user.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Acote el periodo o los filtros.')
+    expect(saveFile).not.toHaveBeenCalled()
   })
 })

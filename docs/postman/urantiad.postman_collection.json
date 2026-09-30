@@ -2573,6 +2573,73 @@
           ]
         },
         {
+          "name": "Exportar reporte de ventas (CSV)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/sales/export?group_by=day",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "sales",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "day",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "cash_register_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Mismos permisos y filtros que el reporte, sin paginación. Devuelve text/csv para Excel (UTF-8 con BOM, separador ;, coma decimal) con todas las filas y una fila final \"Total\"; nombre del archivo en Content-Disposition. Más de 10000 filas: 422 REPORT_TOO_LARGE. En Postman usar \"Send and Download\"."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es CSV', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Reporte de compras",
           "request": {
             "method": "GET",
@@ -2643,6 +2710,68 @@
           ]
         },
         {
+          "name": "Exportar reporte de compras (CSV)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/purchases/export?group_by=supplier",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "purchases",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "supplier",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "supplier_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Mismos permisos y filtros que el reporte, sin paginación. Devuelve text/csv para Excel (UTF-8 con BOM, separador ;, coma decimal) con todas las filas y una fila final \"Total\"; nombre del archivo en Content-Disposition. Más de 10000 filas: 422 REPORT_TOO_LARGE. En Postman usar \"Send and Download\"."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es CSV', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Reporte de inventario",
           "request": {
             "method": "GET",
@@ -2682,6 +2811,43 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Exportar reporte de inventario (CSV)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/inventory/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "inventory",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Mismos permisos y filtros que el reporte, sin paginación. Devuelve text/csv para Excel (UTF-8 con BOM, separador ;, coma decimal) con todas las filas y una fila final \"Total\"; nombre del archivo en Content-Disposition. Más de 10000 filas: 422 REPORT_TOO_LARGE. En Postman usar \"Send and Download\"."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es CSV', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
                 ]
               }
             }
@@ -2747,6 +2913,63 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Exportar reporte de caja (CSV)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/cash/export?group_by=day",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "cash",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "group_by",
+                  "value": "day",
+                  "disabled": false
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-09-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-10-01T00:00:00-05:00",
+                  "disabled": true
+                },
+                {
+                  "key": "cash_register_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Mismos permisos y filtros que el reporte, sin paginación. Devuelve text/csv para Excel (UTF-8 con BOM, separador ;, coma decimal) con todas las filas y una fila final \"Total\"; nombre del archivo en Content-Disposition. Más de 10000 filas: 422 REPORT_TOO_LARGE. En Postman usar \"Send and Download\"."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es CSV', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
                 ]
               }
             }

@@ -1,3 +1,4 @@
+import csv
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -19,6 +20,7 @@ from app.models import (
     Supplier,
     User,
 )
+from app.services import report_export
 from tests.conftest import UserFactory
 from tests.test_cash import add_register, add_session, post_movement
 from tests.test_categories import add_category
@@ -611,3 +613,152 @@ def test_cash_report_separates_surplus_and_shortage(
     by_day = report(client, admin_headers, "cash")["items"]
     assert len(by_day) == 1
     assert by_day[0]["sessions_count"] == 3
+
+
+# --- CSV export ----------------------------------------------------------------------
+
+SEPTEMBER = {"date_from": "2026-09-01T00:00:00-05:00", "date_to": "2026-10-01T00:00:00-05:00"}
+
+
+def export(client: TestClient, headers: dict[str, str], name: str, **params: Any) -> Any:
+    return client.get(f"{REPORTS_URL}/{name}/export", params=params, headers=headers)
+
+
+def read_csv(response: Any) -> list[list[str]]:
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert response.content.startswith(b"\xef\xbb\xbf")  # BOM: Excel reads UTF-8
+    return list(csv.reader(response.content.decode("utf-8-sig").splitlines(), delimiter=";"))
+
+
+def filename(response: Any) -> str:
+    return response.headers["content-disposition"].removeprefix("attachment; filename=")
+
+
+@pytest.mark.usefixtures("sales")
+def test_sales_export_has_every_group_and_the_total(
+    client: TestClient, admin_headers: dict[str, str]
+) -> None:
+    response = export(client, admin_headers, "sales", group_by="product", **SEPTEMBER)
+    rows = read_csv(response)
+    assert filename(response) == '"ventas-por-producto_2026-09-01_2026-09-30.csv"'
+    assert rows[0] == [
+        "Producto",
+        "SKU",
+        "Ventas",
+        "Cantidad",
+        "Descuentos",
+        "IVA",
+        "Sin IVA",
+        "Total",
+        "Costo",
+        "Margen bruto",
+        "Margen %",
+    ]
+    # The same data and order as the report, amounts with decimal comma.
+    assert rows[1] == [
+        "Gaseosa", "GASEOSA-1", "1", "1,00", "0,00", "950,00", "5000,00", "5950,00",
+        "3000,00", "2000,00", "40,00",
+    ]  # fmt: skip
+    assert [row[0] for row in rows[1:]] == ["Gaseosa", "Agua", "Copia", "Total"]
+    assert rows[-1] == [
+        "Total", "", "2", "", "500,00", "950,00", "11500,00", "12450,00", "6850,00",
+        "4650,00", "40,43",
+    ]  # fmt: skip
+
+
+@pytest.mark.usefixtures("sales")
+def test_export_is_not_limited_to_one_page_but_has_a_maximum(
+    client: TestClient, admin_headers: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(report_export, "EXPORT_LIMIT", 3)
+    rows = read_csv(export(client, admin_headers, "sales", group_by="product", size=1))
+    assert len(rows) == 5  # header + 3 products + total
+
+    monkeypatch.setattr(report_export, "EXPORT_LIMIT", 2)
+    response = export(client, admin_headers, "sales", group_by="product")
+    assert response.status_code == 422
+    assert response.json()["code"] == "REPORT_TOO_LARGE"
+
+
+@pytest.mark.usefixtures("sales")
+def test_sales_export_by_payment_method_and_without_costs(
+    client: TestClient,
+    db_session: Session,
+    admin: User,
+    admin_headers: dict[str, str],
+    water: Product,
+) -> None:
+    rows = read_csv(export(client, admin_headers, "sales", group_by="payment_method"))
+    assert rows == [
+        ["Método de pago", "Ventas", "Total"],
+        ["Efectivo", "2", "11450,00"],
+        ["Nequi", "1", "1000,00"],
+        ["Total", "2", "12450,00"],
+    ]
+    response = export(
+        client, admin_headers, "sales", group_by="payment_method", product_id=water.id
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "REPORT_FILTER_NOT_SUPPORTED"
+
+    revoke(db_session, admin, PermissionCode.PRODUCTS_VIEW_COSTS)
+    header = read_csv(export(client, admin_headers, "sales"))[0]
+    assert header == ["Día", "Ventas", "Descuentos", "IVA", "Sin IVA", "Total"]
+
+
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [
+        (RoleCode.INVENTORY, {"purchases", "inventory"}),
+        (RoleCode.CASHIER, set()),
+    ],
+)
+def test_exports_follow_the_permissions_of_their_report(
+    client: TestClient,
+    make_user: UserFactory,
+    auth_headers: AuthHeaders,
+    role: RoleCode,
+    allowed: set[str],
+) -> None:
+    headers = auth_headers(make_user(role))
+    for name in ("sales", "purchases", "inventory", "cash"):
+        assert export(client, headers, name).status_code == (200 if name in allowed else 403)
+
+
+@pytest.mark.usefixtures("purchases")
+def test_purchases_and_inventory_exports(
+    client: TestClient, keeper_headers: dict[str, str]
+) -> None:
+    response = export(client, keeper_headers, "purchases", **SEPTEMBER)
+    rows = read_csv(response)
+    assert filename(response) == '"compras-por-proveedor_2026-09-01_2026-09-30.csv"'
+    assert rows[0][:3] == ["Proveedor", "Documento", "Compras"]
+    assert rows[1][:2] == ["Distribuidora Andina", "900123456-7"]
+    assert rows[-1] == ["Total", "", "2", "400,00", "24000,00", "1900,00", "25900,00"]
+
+    response = export(client, keeper_headers, "inventory")
+    rows = read_csv(response)
+    assert filename(response).startswith('"inventario-por-categoria_')
+    assert rows[0][-1] == "Valor al costo"
+    assert rows[-1][0] == "Total"
+
+
+def test_cash_export_keeps_the_sign_of_the_difference(
+    client: TestClient,
+    db_session: Session,
+    cashier: User,
+    headers: dict[str, str],
+    admin_headers: dict[str, str],
+    register: CashRegister,
+) -> None:
+    one = add_session(db_session, register, cashier, Decimal(50000))
+    close(client, headers, one.id, "48000")
+
+    response = export(client, admin_headers, "cash", group_by="cash_register")
+    rows = read_csv(response)
+    assert filename(response) == '"caja-por-caja.csv"'
+    by_header = dict(zip(rows[0], rows[1], strict=True))
+    assert by_header["Caja"] == register.name
+    assert (by_header["Faltantes"], by_header["Diferencia neta"]) == ("2000,00", "-2000,00")
+    assert rows[-1][0] == "Total"

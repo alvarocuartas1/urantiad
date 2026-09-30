@@ -58,7 +58,8 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   return `${API_URL}${path}${search ? `?${search}` : ''}`
 }
 
-async function send<T>(path: string, options: RequestOptions): Promise<T> {
+/** Send a request and return the response, or throw an `ApiError` if it failed. */
+async function fetchApi(path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = {}
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`
@@ -78,8 +79,8 @@ async function send<T>(path: string, options: RequestOptions): Promise<T> {
     })
   }
 
-  const body: unknown = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null)
     throw new ApiError(
       response.status,
       isApiErrorBody(body)
@@ -87,6 +88,12 @@ async function send<T>(path: string, options: RequestOptions): Promise<T> {
         : { detail: 'Error inesperado del servidor.', code: 'UNKNOWN_ERROR' },
     )
   }
+  return response
+}
+
+async function send<T>(path: string, options: RequestOptions): Promise<T> {
+  const response = await fetchApi(path, options)
+  const body: unknown = response.status === 204 ? null : await response.json().catch(() => null)
   return body as T
 }
 
@@ -112,13 +119,46 @@ export function refreshSession(): Promise<TokenResponse> {
   return refreshPromise
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/** Run `request`; after a 401, renew the session once and run it again. */
+async function withSessionRetry<T>(
+  path: string,
+  options: RequestOptions,
+  request: () => Promise<T>,
+): Promise<T> {
   try {
-    return await send<T>(path, options)
+    return await request()
   } catch (error) {
     const canRetry = options.retryOnUnauthorized !== false && path !== REFRESH_PATH
     if (!(error instanceof ApiError) || error.status !== 401 || !canRetry) throw error
   }
   await refreshSession()
-  return send<T>(path, options)
+  return request()
+}
+
+export function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return withSessionRetry(path, options, () => send<T>(path, options))
+}
+
+export interface DownloadedFile {
+  blob: Blob
+  filename: string
+}
+
+/** Name sent by the server in `Content-Disposition: attachment; filename="…"`. */
+function attachmentName(header: string | null): string | undefined {
+  return header?.match(/filename="?([^";]+)"?/)?.[1]
+}
+
+/** Download a file (e.g. a report export) with the same session handling as `apiRequest`. */
+export function apiDownload(
+  path: string,
+  query?: RequestOptions['query'],
+  fallbackName = 'descarga',
+): Promise<DownloadedFile> {
+  const options: RequestOptions = { query }
+  return withSessionRetry(path, options, async () => {
+    const response = await fetchApi(path, options)
+    const filename = attachmentName(response.headers.get('Content-Disposition')) ?? fallbackName
+    return { blob: await response.blob(), filename }
+  })
 }

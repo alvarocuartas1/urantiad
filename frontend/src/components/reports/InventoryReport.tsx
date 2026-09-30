@@ -5,11 +5,13 @@ import { FilterSelect } from '@/components/ui/ListFilters'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveCategories } from '@/hooks/useCategories'
 import { useInventoryReport } from '@/hooks/useReports'
+import { exportInventoryReport } from '@/services/reports'
 import { PERMISSIONS } from '@/types/auth'
 import type { InventoryReportRow, InventoryReportSummary } from '@/types/report'
 import { STOCK_STATUS_LABELS } from '@/utils/catalog'
 import { formatCurrency } from '@/utils/format'
 import { countColumn, groupColumn, moneyColumn } from './columns'
+import { ExportButton } from './ExportButton'
 import { ReportResults } from './ReportResults'
 import type { ReportColumn } from './ReportTable'
 import { ReportToolbar } from './ReportToolbar'
@@ -75,10 +77,11 @@ export function InventoryReport() {
   const [page, setPage] = useState(1)
   const [categoryId, setCategoryId] = useState('')
   const { categories } = useActiveCategories()
+  const reportParams = { category_id: categoryId ? Number(categoryId) : undefined }
   const { data, isPending, error, isFetching } = useInventoryReport({
     page,
     size: PAGE_SIZE,
-    category_id: categoryId ? Number(categoryId) : undefined,
+    ...reportParams,
   })
 
   return (
@@ -111,6 +114,7 @@ export function InventoryReport() {
             </Link>
           ))}
         </nav>
+        <ExportButton onExport={() => exportInventoryReport(reportParams)} />
       </ReportToolbar>
       <p className="text-sm text-slate-600">
         Estado actual de los productos físicos activos (los servicios no manejan stock).

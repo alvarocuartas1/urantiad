@@ -4,6 +4,7 @@ import { FilterSelect } from '@/components/ui/ListFilters'
 import { useAuth } from '@/hooks/useAuth'
 import { useCashRegisters } from '@/hooks/useCash'
 import { useCashReport } from '@/hooks/useReports'
+import { exportCashReport } from '@/services/reports'
 import { useUsers } from '@/hooks/useUsers'
 import { PERMISSIONS } from '@/types/auth'
 import type { CashGroupBy, CashReportRow, CashReportSummary } from '@/types/report'
@@ -12,6 +13,7 @@ import { formatCurrency } from '@/utils/format'
 import { businessDayRange } from '@/utils/inventory'
 import { CASH_GROUP_LABELS, currentMonthDates } from '@/utils/report'
 import { groupColumn, moneyColumn } from './columns'
+import { ExportButton } from './ExportButton'
 import { ReportResults } from './ReportResults'
 import type { ReportColumn } from './ReportTable'
 import { PeriodFilter, ReportToolbar } from './ReportToolbar'
@@ -111,13 +113,16 @@ export function CashReport() {
 
   const users = useUsers(ALL_FOR_FILTER, { enabled: canListUsers })
   const registers = useCashRegisters(ALL_FOR_FILTER, { enabled: canListRegisters })
-  const { data, isPending, error, isFetching } = useCashReport({
-    page,
-    size: PAGE_SIZE,
+  const reportParams = {
     group_by: filters.groupBy,
     ...businessDayRange(filters.from, filters.to),
     cash_register_id: filters.registerId ? Number(filters.registerId) : undefined,
     user_id: filters.userId ? Number(filters.userId) : undefined,
+  }
+  const { data, isPending, error, isFetching } = useCashReport({
+    page,
+    size: PAGE_SIZE,
+    ...reportParams,
   })
 
   const updateFilters = (changes: Partial<Filters>) => {
@@ -168,6 +173,7 @@ export function CashReport() {
             ))}
           </FilterSelect>
         )}
+        <ExportButton onExport={() => exportCashReport(reportParams)} />
       </ReportToolbar>
       <p className="text-sm text-slate-600">
         Esperado, contado y diferencias solo incluyen las aperturas ya cerradas.

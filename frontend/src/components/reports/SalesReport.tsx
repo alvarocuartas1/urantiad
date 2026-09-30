@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCashRegisters } from '@/hooks/useCash'
 import { useActiveCategories } from '@/hooks/useCategories'
 import { useSalesReport } from '@/hooks/useReports'
+import { exportSalesReport } from '@/services/reports'
 import { useUsers } from '@/hooks/useUsers'
 import { PERMISSIONS } from '@/types/auth'
 import type { Product } from '@/types/catalog'
@@ -13,6 +14,7 @@ import { formatCurrency } from '@/utils/format'
 import { businessDayRange } from '@/utils/inventory'
 import { currentMonthDates, formatPercent, SALES_GROUP_LABELS } from '@/utils/report'
 import { countColumn, groupColumn, moneyColumn, percentColumn, quantityColumn } from './columns'
+import { ExportButton } from './ExportButton'
 import { ProductFilter } from './ProductFilter'
 import { ReportResults } from './ReportResults'
 import type { ReportColumn } from './ReportTable'
@@ -115,15 +117,18 @@ export function SalesReport() {
   const users = useUsers(ALL_FOR_FILTER, { enabled: canListUsers })
   const registers = useCashRegisters(ALL_FOR_FILTER, { enabled: canListRegisters })
   const { categories } = useActiveCategories()
-  const { data, isPending, error, isFetching } = useSalesReport({
-    page,
-    size: PAGE_SIZE,
+  const reportParams = {
     group_by: filters.groupBy,
     ...businessDayRange(filters.from, filters.to),
     user_id: filters.userId ? Number(filters.userId) : undefined,
     cash_register_id: filters.registerId ? Number(filters.registerId) : undefined,
     category_id: filters.categoryId ? Number(filters.categoryId) : undefined,
     product_id: filters.product?.id,
+  }
+  const { data, isPending, error, isFetching } = useSalesReport({
+    page,
+    size: PAGE_SIZE,
+    ...reportParams,
   })
 
   const updateFilters = (changes: Partial<Filters>) => {
@@ -203,6 +208,7 @@ export function SalesReport() {
             />
           </>
         )}
+        <ExportButton onExport={() => exportSalesReport(reportParams)} />
       </ReportToolbar>
 
       <ReportResults
