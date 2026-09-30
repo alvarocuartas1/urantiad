@@ -77,9 +77,9 @@ def inventory_rotation(
     order: RotationOrder = RotationOrder.SLOWEST,
     category_id: OptionalId = None,
 ) -> RotationPage:
-    """Rotation of the active physical products in the period (units sold / average of
-    the stock at the start and at the end) and the days the final stock lasts. `slowest`
-    lists idle stock first."""
+    """Rotation of the active physical products in the period (units sold / average stock
+    weighted by time) and the days the final stock lasts. A product that started the period
+    without stock is measured from its arrival. `slowest` lists idle stock first."""
     items, total, summary = statistics_service.inventory_rotation(
         db,
         params,

@@ -153,7 +153,7 @@ docs/postman/      # colección "URANTIAD API"
 - Periodos en días locales (`date_from` y `date_to` incluidos, hora de `BUSINESS_TIMEZONE`); solo ventas completadas; margen solo con `products.view_costs`. Las ventas por categoría y por método de pago se obtienen del reporte de ventas.
 - `GET /api/v1/statistics/sales-trend` (`sales.read_all`): ventas por día, semana (desde el lunes) o mes; el rango se amplía a periodos completos y los periodos sin ventas llegan en cero (máximo 400 puntos, 422 `STATISTICS_RANGE_TOO_LARGE`).
 - `GET /api/v1/statistics/top-products` (`sales.read_all`): productos y servicios más vendidos por unidades o por valor.
-- `GET /api/v1/statistics/inventory-rotation` (`inventory.read`, paginado): por producto físico activo, rotación = unidades vendidas / promedio del stock al inicio y al final del periodo, y días de inventario = stock final / venta diaria del periodo. El stock de una fecha se reconstruye con el stock actual menos lo que sumaron los movimientos posteriores.
+- `GET /api/v1/statistics/inventory-rotation` (`inventory.read`, paginado): por producto físico activo, rotación = unidades vendidas / stock promedio ponderado por tiempo (cada nivel de stock cuenta el tiempo que duró) y días de inventario = stock final / venta diaria. Se mide desde el inicio del periodo, o desde la llegada del producto si empezó sin stock, hasta el fin del periodo u hoy. El stock de una fecha se reconstruye con el stock actual menos lo que sumaron los movimientos posteriores.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

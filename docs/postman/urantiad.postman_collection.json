@@ -3136,7 +3136,7 @@
                 }
               ]
             },
-            "description": "Requiere inventory.read. Productos físicos activos: unidades vendidas, stock al inicio y al final, stock promedio, rotación (vendidas / stock promedio) y días de inventario (stock final / venta diaria). order=slowest muestra primero el stock inmóvil; fastest, lo que más rota. Periodo futuro: 422 INVALID_DATE_RANGE."
+            "description": "Requiere inventory.read. Productos físicos activos: unidades vendidas, stock al inicio y al final, stock promedio ponderado por tiempo, rotación (vendidas / stock promedio), días de inventario (stock final / venta diaria) y días medidos (un producto que empezó el periodo sin stock se mide desde su llegada). order=slowest muestra primero el stock inmóvil; fastest, lo que más rota. Periodo futuro: 422 INVALID_DATE_RANGE."
           },
           "event": [
             {

@@ -5,11 +5,11 @@ bounds here. Each statistic is a single grouped query; only completed sales coun
 """
 
 from calendar import monthrange
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Date, Select, case, cast, distinct, func, null, select
+from sqlalchemy import Date, DateTime, Select, case, cast, distinct, func, literal, null, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -40,8 +40,13 @@ from app.services.query import paginate_rows
 from app.services.report_service import can_view_costs, money
 
 MAX_TREND_POINTS = 400
+SECONDS_PER_DAY = 86400
 
 _SALE_COMPLETED = Sale.status == SaleStatus.COMPLETED
+
+
+def _seconds(interval: Any) -> Any:
+    return func.extract("epoch", interval)
 
 
 def _check_range(date_from: date, date_to: date) -> None:
@@ -222,6 +227,11 @@ def inventory_rotation(
 ) -> tuple[list[RotationRow], int, RotationSummary]:
     """Rotation of the active physical products: units sold over the average stock.
 
+    The average stock is weighted by time: each stock level counts for as long as it
+    lasted. It is measured from the start of the period or, for a product that started it
+    without stock, from its first movement in the period (its arrival), up to the end of
+    the period or now. Days of inventory use the daily sales of that same span.
+
     The stock at a moment is the current stock minus what the movements since then added,
     so it is exact even for products whose stock predates their movements."""
     _check_range(date_from, date_to)
@@ -234,6 +244,9 @@ def inventory_rotation(
             status_code=422,
         )
     start, end = _bounds(date_from, date_to)
+    measured_until = min(end, now or datetime.now(UTC))
+    window_start = literal(start, DateTime(timezone=True))
+    window_end = literal(measured_until, DateTime(timezone=True))
 
     sold = (
         _completed_lines(
@@ -253,11 +266,45 @@ def inventory_rotation(
         .group_by(InventoryMovement.product_id)
         .subquery()
     )
+    # Each movement in the window leaves `stock_after` until the next one (or the window end).
+    segments = (
+        select(
+            InventoryMovement.product_id,
+            InventoryMovement.created_at,
+            InventoryMovement.stock_after,
+            func.lead(InventoryMovement.created_at)
+            .over(
+                partition_by=InventoryMovement.product_id,
+                order_by=(InventoryMovement.created_at, InventoryMovement.id),
+            )
+            .label("next_at"),
+        )
+        .where(InventoryMovement.created_at >= start, InventoryMovement.created_at < measured_until)
+        .subquery()
+    )
+    held = (
+        select(
+            segments.c.product_id,
+            func.min(segments.c.created_at).label("first_at"),
+            func.sum(
+                func.greatest(segments.c.stock_after, 0)
+                * _seconds(func.coalesce(segments.c.next_at, window_end) - segments.c.created_at)
+            ).label("stock_seconds"),
+        )
+        .group_by(segments.c.product_id)
+        .subquery()
+    )
 
     units = func.coalesce(sold.c.units, 0)
     stock_start = Product.current_stock - func.coalesce(moved.c.since_start, 0)
     stock_end = Product.current_stock - func.coalesce(moved.c.since_end, 0)
-    average = (func.greatest(stock_start, 0) + func.greatest(stock_end, 0)) / 2
+    first_at = func.coalesce(held.c.first_at, window_end)
+    measured_from = case((stock_start > 0, window_start), else_=first_at)
+    measured_seconds = func.greatest(_seconds(window_end - measured_from), 0)
+    stock_seconds = func.greatest(stock_start, 0) * _seconds(
+        first_at - window_start
+    ) + func.coalesce(held.c.stock_seconds, 0)
+    average = case((measured_seconds > 0, stock_seconds / measured_seconds), else_=0)
     rows = (
         select(
             Product.id.label("product_id"),
@@ -271,13 +318,21 @@ def inventory_rotation(
             average.label("average_stock"),
             case((average > 0, func.round(units / average, 2)), else_=null()).label("rotation"),
             case(
-                (units > 0, func.round(func.greatest(stock_end, 0) * period_days / units, 2)),
+                (
+                    units > 0,
+                    func.round(
+                        func.greatest(stock_end, 0) * measured_seconds / SECONDS_PER_DAY / units,
+                        2,
+                    ),
+                ),
                 else_=null(),
             ).label("days_of_inventory"),
+            func.round(measured_seconds / SECONDS_PER_DAY, 2).label("measured_days"),
         )
         .join(Product.category)
         .outerjoin(sold, sold.c.product_id == Product.id)
         .outerjoin(moved, moved.c.product_id == Product.id)
+        .outerjoin(held, held.c.product_id == Product.id)
         .where(Product.type == ProductType.PRODUCT, Product.is_active.is_(True))
     )
     if category_id is not None:

@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.permissions import PermissionCode, RoleCode
 from app.models import CashRegister, CashSession, Category, InventoryMovement, Product, Sale, User
+from app.schemas.common import PageParams
+from app.services import statistics_service
 from tests.conftest import UserFactory
 from tests.test_cash import add_register, add_session
 from tests.test_categories import add_category
@@ -334,40 +336,53 @@ def rotation_data(
     soda: Product,
     copy_service: Product,
 ) -> None:
-    """Period March 1-10:
+    """Period March 1-10 (Bogotá), 10 days:
 
-    - Water: 10 at the start, 4 sold on March 5, 10 received on March 15 (after the
-      period): stock 16 now, 6 at the end, average 8.
+    - Water: 10 at the start, 4 sold on March 5 at 10:00, 10 received on March 15 (after
+      the period): stock 16 now, 6 at the end. Held 10 for 4 d 10 h and 6 for 5 d 14 h:
+      77,67 unit-days, average 7,77.
+    - New: arrived without stock (20 received on March 6 at 00:00), 5 sold on March 8 at
+      10:00. Measured 5 days: 20 for 2 d 10 h and 15 for 2 d 14 h, average 17,42.
     - Soda: 1 sold in February (before the period): 4 all along, no sales in the period.
     - Empty: never had stock. Inactive products and services are left out.
     """
     add_product(db_session, drinks, "VACIO-1", name="Vacío")
     add_product(db_session, drinks, "INACTIVO-1", current_stock=Decimal(3), is_active=False)
+    new = add_product(db_session, drinks, "NUEVO-1", name="Nuevo")
+
+    def move_adjustment(response: Any, when: datetime) -> None:
+        assert response.status_code == 201, response.json()
+        db_session.execute(
+            update(InventoryMovement)
+            .where(InventoryMovement.id == response.json()["movement"]["id"])
+            .values(created_at=when)
+        )
 
     sold = sell(client, headers, [item(water, "4")], [pay(db_session, "cash", "8000")])
     move_sale(db_session, sold["id"], datetime(2026, 3, 5, 15, tzinfo=UTC))
     before = sell(client, headers, [item(soda)], [pay(db_session, "cash", "5950")])
     move_sale(db_session, before["id"], datetime(2026, 2, 20, 15, tzinfo=UTC))
-    received = adjust(client, admin_headers, water, quantity="10")
-    assert received.status_code == 201, received.json()
-    db_session.execute(
-        update(InventoryMovement)
-        .where(InventoryMovement.id == received.json()["movement"]["id"])
-        .values(created_at=datetime(2026, 3, 15, 15, tzinfo=UTC))
+    move_adjustment(
+        adjust(client, admin_headers, water, quantity="10"), datetime(2026, 3, 15, 15, tzinfo=UTC)
     )
+    move_adjustment(
+        adjust(client, admin_headers, new, quantity="20"), datetime(2026, 3, 6, 5, tzinfo=UTC)
+    )
+    new_sale = sell(client, headers, [item(new, "5")], [pay(db_session, "cash", "5000")])
+    move_sale(db_session, new_sale["id"], datetime(2026, 3, 8, 15, tzinfo=UTC))
 
 
 ROTATION_PERIOD = {"date_from": "2026-03-01", "date_to": "2026-03-10"}
 
 
 @pytest.mark.usefixtures("rotation_data")
-def test_rotation_uses_the_stock_at_the_start_and_end_of_the_period(
+def test_rotation_weights_the_stock_by_time(
     client: TestClient, admin_headers: dict[str, str]
 ) -> None:
     body = get(client, admin_headers, "inventory-rotation", **ROTATION_PERIOD)
-    assert body["summary"] == {"products_count": 3, "without_sales_count": 2, "period_days": 10}
-    assert [row["name"] for row in body["items"]] == ["Gaseosa", "Agua", "Vacío"]
-    soda, water, empty = body["items"]
+    assert body["summary"] == {"products_count": 4, "without_sales_count": 2, "period_days": 10}
+    assert [row["name"] for row in body["items"]] == ["Gaseosa", "Nuevo", "Agua", "Vacío"]
+    soda, _, water, empty = body["items"]
     assert water == {
         "product_id": water["product_id"],
         "name": "Agua",
@@ -377,13 +392,45 @@ def test_rotation_uses_the_stock_at_the_start_and_end_of_the_period(
         "units_sold": "4.00",
         "stock_start": "10.00",
         "stock_end": "6.00",
-        "average_stock": "8.00",
-        "rotation": "0.50",
+        "average_stock": "7.77",
+        "rotation": "0.52",
         "days_of_inventory": "15.00",
+        "measured_days": "10.00",
     }
     assert (soda["units_sold"], soda["average_stock"], soda["rotation"]) == ("0.00", "4.00", "0.00")
-    assert soda["days_of_inventory"] is None
-    assert (empty["rotation"], empty["days_of_inventory"]) == (None, None)
+    assert (soda["days_of_inventory"], soda["measured_days"]) == (None, "10.00")
+    assert (empty["average_stock"], empty["rotation"], empty["days_of_inventory"]) == (
+        "0.00",
+        None,
+        None,
+    )
+
+
+@pytest.mark.usefixtures("rotation_data")
+def test_rotation_of_a_product_that_arrives_during_the_period_counts_from_its_arrival(
+    client: TestClient, admin_headers: dict[str, str]
+) -> None:
+    rows = get(client, admin_headers, "inventory-rotation", **ROTATION_PERIOD)["items"]
+    new = next(row for row in rows if row["name"] == "Nuevo")
+    assert (new["stock_start"], new["stock_end"], new["units_sold"]) == ("0.00", "15.00", "5.00")
+    # 5 sold in 5 days: 15 in stock last 15 days (not 30, as over the whole period).
+    assert (new["measured_days"], new["average_stock"]) == ("5.00", "17.42")
+    assert (new["rotation"], new["days_of_inventory"]) == ("0.29", "15.00")
+
+
+def test_rotation_of_the_current_period_is_measured_until_now(
+    db_session: Session, water: Product
+) -> None:
+    items, _, summary = statistics_service.inventory_rotation(
+        db_session,
+        PageParams(page=1, size=20),
+        date_from=date(2026, 3, 1),
+        date_to=date(2026, 3, 31),
+        # March 5 at 00:00 in Bogotá.
+        now=datetime(2026, 3, 5, 5, tzinfo=UTC),
+    )
+    assert summary.period_days == 5
+    assert (items[0].measured_days, items[0].average_stock) == (Decimal("4.00"), Decimal("10.00"))
 
 
 @pytest.mark.usefixtures("rotation_data")
@@ -391,9 +438,9 @@ def test_rotation_fastest_first_and_paginated(
     client: TestClient, admin_headers: dict[str, str]
 ) -> None:
     body = get(client, admin_headers, "inventory-rotation", order="fastest", **ROTATION_PERIOD)
-    assert [row["name"] for row in body["items"]] == ["Agua", "Gaseosa", "Vacío"]
+    assert [row["name"] for row in body["items"]] == ["Agua", "Nuevo", "Gaseosa", "Vacío"]
     page = get(client, admin_headers, "inventory-rotation", size=1, page=2, **ROTATION_PERIOD)
-    assert (page["total"], [row["name"] for row in page["items"]]) == (3, ["Agua"])
+    assert (page["total"], [row["name"] for row in page["items"]]) == (4, ["Nuevo"])
 
 
 @pytest.mark.usefixtures("rotation_data")
