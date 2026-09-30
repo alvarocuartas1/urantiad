@@ -21,7 +21,7 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
 import { Button } from '@/components/ui/Button'
@@ -146,7 +146,10 @@ export function AppLayout() {
           </Button>
         </header>
         <main className="flex-1 p-4 md:p-6">
-          <Outlet />
+          {/* Most pages are loaded on demand (see App). */}
+          <Suspense fallback={<p className="text-sm text-slate-600">Cargando…</p>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

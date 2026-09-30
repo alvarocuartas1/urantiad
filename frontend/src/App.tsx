@@ -1,35 +1,37 @@
-import { lazy, Suspense } from 'react'
+import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { RequirePermission } from '@/components/auth/RequirePermission'
 import { AppLayout } from '@/components/layout/AppLayout'
-import AuditLogsPage from '@/pages/AuditLogsPage'
-import CashRegistersPage from '@/pages/CashRegistersPage'
-import CashSessionsPage from '@/pages/CashSessionsPage'
-import CategoriesPage from '@/pages/CategoriesPage'
-import CustomersPage from '@/pages/CustomersPage'
 import HomePage from '@/pages/HomePage'
-import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
-import MyCashPage from '@/pages/MyCashPage'
-import PaymentMethodsPage from '@/pages/PaymentMethodsPage'
 import PosPage from '@/pages/PosPage'
-import ProductsPage from '@/pages/ProductsPage'
-import PurchasePage from '@/pages/PurchasePage'
-import PurchasesPage from '@/pages/PurchasesPage'
-import ReportsPage from '@/pages/ReportsPage'
-import ReplenishmentPage from '@/pages/ReplenishmentPage'
-import SalePage from '@/pages/SalePage'
-import SalesPage from '@/pages/SalesPage'
-import SuppliersPage from '@/pages/SuppliersPage'
-import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
 import { REPORT_PERMISSIONS } from '@/utils/report'
 import { STATISTICS_PERMISSIONS } from '@/utils/statistics'
 
-// Loaded on demand: its chart library never reaches the POS or the other pages.
+// Login, home and POS ship in the main bundle: the cashier never waits for them. The other
+// pages load on demand (AppLayout shows a placeholder meanwhile), so their code and
+// libraries (charts in statistics) stay out of the POS.
+const AuditLogsPage = lazy(() => import('@/pages/AuditLogsPage'))
+const CashRegistersPage = lazy(() => import('@/pages/CashRegistersPage'))
+const CashSessionsPage = lazy(() => import('@/pages/CashSessionsPage'))
+const CategoriesPage = lazy(() => import('@/pages/CategoriesPage'))
+const CustomersPage = lazy(() => import('@/pages/CustomersPage'))
+const InventoryMovementsPage = lazy(() => import('@/pages/InventoryMovementsPage'))
+const MyCashPage = lazy(() => import('@/pages/MyCashPage'))
+const PaymentMethodsPage = lazy(() => import('@/pages/PaymentMethodsPage'))
+const ProductsPage = lazy(() => import('@/pages/ProductsPage'))
+const PurchasePage = lazy(() => import('@/pages/PurchasePage'))
+const PurchasesPage = lazy(() => import('@/pages/PurchasesPage'))
+const ReplenishmentPage = lazy(() => import('@/pages/ReplenishmentPage'))
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'))
+const SalePage = lazy(() => import('@/pages/SalePage'))
+const SalesPage = lazy(() => import('@/pages/SalesPage'))
 const StatisticsPage = lazy(() => import('@/pages/StatisticsPage'))
+const SuppliersPage = lazy(() => import('@/pages/SuppliersPage'))
+const UsersPage = lazy(() => import('@/pages/UsersPage'))
 
 function App() {
   return (
@@ -88,16 +90,7 @@ function App() {
                 <Route path="reportes/:tab" element={<ReportsPage />} />
               </Route>
               <Route element={<RequirePermission permission={STATISTICS_PERMISSIONS} />}>
-                <Route
-                  path="estadisticas"
-                  element={
-                    <Suspense
-                      fallback={<p className="text-sm text-slate-600">Cargando estadísticas…</p>}
-                    >
-                      <StatisticsPage />
-                    </Suspense>
-                  }
-                />
+                <Route path="estadisticas" element={<StatisticsPage />} />
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.auditRead} />}>
                 <Route path="auditoria" element={<AuditLogsPage />} />
