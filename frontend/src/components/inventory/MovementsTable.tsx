@@ -1,5 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router'
+import { useAuth } from '@/hooks/useAuth'
+import { PERMISSIONS } from '@/types/auth'
 import type { InventoryMovement } from '@/types/inventory'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
 import { formatCurrency, formatDateTime, formatQuantity } from '@/utils/format'
@@ -101,7 +103,8 @@ export function MovementsTable({ movements, showProduct = true, showCosts }: Mov
                       {movement.purchase.number}
                     </Link>
                   )}
-                  {movement.reason ?? (movement.purchase ? null : '—')}
+                  {movement.sale && <SaleReference sale={movement.sale} />}
+                  {movement.reason ?? (movement.purchase || movement.sale ? null : '—')}
                 </td>
                 <td className={`${CELL_CLASS} text-slate-700`}>{movement.user.full_name}</td>
               </tr>
@@ -110,5 +113,21 @@ export function MovementsTable({ movements, showProduct = true, showCosts }: Mov
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** Number of the source sale, linked for users who can open sales. */
+function SaleReference({ sale }: { sale: { id: number; number: string } }) {
+  const { hasPermission } = useAuth()
+  if (!hasPermission(PERMISSIONS.salesRead)) {
+    return <span className="block font-medium text-slate-900">{sale.number}</span>
+  }
+  return (
+    <Link
+      to={`/ventas/${sale.id}`}
+      className="block font-medium text-slate-900 underline-offset-2 hover:underline"
+    >
+      {sale.number}
+    </Link>
   )
 }

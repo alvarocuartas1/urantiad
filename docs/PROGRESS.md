@@ -14,7 +14,7 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 5 | Compras: borrador, confirmación, entradas de inventario, costo promedio, historial de costos | Terminada |
 | 6 | Clientes | Terminada |
 | 7 | Cajas, apertura y movimientos de caja | Terminada |
-| 8 | POS y ventas: carrito, pagos, consecutivos, anulación | En curso (8a terminada) |
+| 8 | POS y ventas: carrito, pagos, consecutivos, anulación | Terminada |
 | 9 | Arqueo y cierre de caja | Pendiente |
 | 10 | Auditoría | Pendiente |
 | 11 | Reportes | Pendiente |
@@ -82,6 +82,9 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - `cash_movements`: tipos `sale` (entrada) y `sale_cancellation` (salida) con `sale_id` obligatorio para ellos (CHECK); el endpoint manual solo acepta `income`/`withdrawal` (`ManualCashMovementType`). El resumen de caja agrupa por tipo y suma según `is_inbound`.
 - Permisos `sales.create`, `sales.read` (admin, cajero; sin `sales.read_all` solo las propias, 404 para ajenas), `sales.read_all`, `sales.cancel` (admin). Inventario no accede a ventas.
 - Tests: si un test verifica que un error no dejó cambios, hace `commit` de la preparación antes de la petición (el `rollback` del servicio deshace también lo que los fixtures solo hicieron `flush`).
+- POS (frontend): carrito en `useCart` (`useReducer` puro) y cálculos en `utils/sale.ts`, espejo del backend en centavos (`allocateCents`, IVA incluido). Una línea por producto: escanear de nuevo suma 1. El escáner se remonta tras cada producto (limpio y enfocado). Atajos F2 (cobrar) y F4 (cliente). El cobro usa RHF + Zod (`buildPaymentsSchema`): efectivo por defecto con foco en "Recibido". Si la venta falla, se recargan los productos del carrito (`GET /products/{id}`); con `PAYMENT_TOTAL_MISMATCH` se cierra el cobro para mostrar el total nuevo. Tras vender se invalidan ventas, caja y stock.
+- Foco tras cerrar un modal y abrir otro en el mismo render: enfocar desde un efecto (no `autoFocus`), porque la limpieza del modal que se cierra devuelve el foco a su elemento anterior después del `autoFocus`.
+- Los cambios hechos por otro usuario (p. ej. una anulación del administrador) aparecen en la pestaña del cajero al recargar o cuando vence el `staleTime` global de 30 s (política de toda la app).
 - Frontend: selector de producto apto para lector de código de barras (Enter busca al instante y elige la coincidencia exacta de SKU o código). Filtros de fecha por días completos en hora de Bogotá (offset fijo `-05:00`, sin horario de verano; fin exclusivo).
 
 ## Registro de etapas terminadas
@@ -193,3 +196,11 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Tests de concurrencia: la última unidad vendida a la vez por dos cajeros se vende una sola vez; consecutivos seguidos; la misma venta anulada a la vez se revierte una sola vez (verificados fallando sin el bloqueo).
 - Frontend sin cambios (llega en la 8b).
 - 338 tests backend.
+
+### Etapa 8b — POS y ventas (frontend)
+- Página `/pos` "Punto de venta" (`sales.create`): sin apertura activa invita a abrir caja. `ProductPicker` con `includeServices` (muestra precio), `CartTable` (cantidad, descuento, aviso de stock, quitar), `CustomerPickerModal`, descuento de la venta, `SaleTotals`, `PaymentModal` (pagos mixtos, recibido y cambio) y `SaleCompletedModal`.
+- Páginas `/ventas` y `/ventas/:id` (`sales.read`) con `SalesTable`, `SaleDetail`, `SaleStatusBadge` (color + icono + texto) y `CancelSaleModal` (solo `sales.cancel`). Menú "Punto de venta" y "Ventas".
+- Caja: resumen con ventas y anulaciones en efectivo, insignias y signo de los nuevos tipos, concepto enlazado a la venta; tipos manuales separados (`ManualCashMovementType`). Inventario: movimientos enlazan la venta (texto sin enlace sin `sales.read`).
+- Compartidos: `divideHalfUp` pasa a `utils/decimal.ts`; `getProduct` en `services/products.ts`; `Button` acepta `ref`.
+- Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: cajero sin caja → abre caja; escanea dos veces (cantidad 2) y un servicio; descuento de venta; F2, recibido y cambio; venta mixta Nequi + efectivo; stock insuficiente rechazado sin cambios; "Mi caja" con ventas en efectivo; admin anula y el reintegro aparece en la caja del cajero. Corregido: Enter en "Venta registrada" no iniciaba la siguiente venta (foco robado por el modal de cobro al cerrarse); título "Movimientos de caja".
+- 338 tests backend, 108 tests frontend.

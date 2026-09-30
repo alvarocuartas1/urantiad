@@ -4,6 +4,7 @@ import type { Purchase, PurchaseInput, PurchaseStatus } from '@/types/purchase'
 import type { SupplierProduct } from '@/types/supplier'
 import {
   compareDecimals,
+  divideHalfUp,
   fromCents,
   isDecimalInput,
   normalizeDecimal,
@@ -23,11 +24,6 @@ export const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string> = {
 const MAX_ITEMS = 200
 
 // --- Amounts (mirror `purchase_service`: half-up rounding to cents) ---------------------
-
-/** `numerator / denominator` rounded half up; both non-negative. */
-function divideHalfUp(numerator: bigint, denominator: bigint): bigint {
-  return (2n * numerator + denominator) / (2n * denominator)
-}
 
 export interface LineAmounts {
   /** Quantity × unit cost, before discount and tax. */

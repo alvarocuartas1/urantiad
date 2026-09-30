@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CashMovementType, CashSessionStatus } from '@/types/cash'
+import type { CashMovementType, CashSessionStatus, ManualCashMovementType } from '@/types/cash'
 import { toCents } from './decimal'
 import { formatCurrency } from './format'
 import { decimalSchema, optionalTextSchema } from './validation'
@@ -7,6 +7,13 @@ import { decimalSchema, optionalTextSchema } from './validation'
 export const CASH_MOVEMENT_TYPE_LABELS: Record<CashMovementType, string> = {
   income: 'Ingreso',
   withdrawal: 'Retiro',
+  sale: 'Venta',
+  sale_cancellation: 'Anulación de venta',
+}
+
+/** Mirrors `INBOUND_CASH_MOVEMENT_TYPES` in `app/models/cash.py`. */
+export function isInboundCashMovement(type: CashMovementType): boolean {
+  return type === 'income' || type === 'sale'
 }
 
 export const CASH_SESSION_STATUS_LABELS: Record<CashSessionStatus, string> = {
@@ -15,7 +22,7 @@ export const CASH_SESSION_STATUS_LABELS: Record<CashSessionStatus, string> = {
 }
 
 /** Frequent concepts offered as suggestions; any other text is accepted. */
-export const CASH_MOVEMENT_CONCEPTS: Record<CashMovementType, readonly string[]> = {
+export const CASH_MOVEMENT_CONCEPTS: Record<ManualCashMovementType, readonly string[]> = {
   income: ['Cambio en monedas', 'Ajuste de base', 'Reintegro de gastos'],
   withdrawal: [
     'Pago a proveedor',
@@ -53,7 +60,7 @@ export type OpenSessionValues = z.output<typeof openSessionSchema>
  * Rules of `CashMovementCreate`. A withdrawal cannot exceed `expectedCash` (the backend checks
  * it again with the session locked).
  */
-export function buildCashMovementSchema(type: CashMovementType, expectedCash: string) {
+export function buildCashMovementSchema(type: ManualCashMovementType, expectedCash: string) {
   return z.object({
     amount: decimalSchema
       .refine((value) => toCents(value) > 0n, 'El valor debe ser mayor que 0.')

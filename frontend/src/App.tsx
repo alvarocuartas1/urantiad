@@ -11,10 +11,13 @@ import HomePage from '@/pages/HomePage'
 import InventoryMovementsPage from '@/pages/InventoryMovementsPage'
 import LoginPage from '@/pages/LoginPage'
 import MyCashPage from '@/pages/MyCashPage'
+import PosPage from '@/pages/PosPage'
 import ProductsPage from '@/pages/ProductsPage'
 import PurchasePage from '@/pages/PurchasePage'
 import PurchasesPage from '@/pages/PurchasesPage'
 import ReplenishmentPage from '@/pages/ReplenishmentPage'
+import SalePage from '@/pages/SalePage'
+import SalesPage from '@/pages/SalesPage'
 import SuppliersPage from '@/pages/SuppliersPage'
 import UsersPage from '@/pages/UsersPage'
 import { PERMISSIONS } from '@/types/auth'
@@ -57,6 +60,13 @@ function App() {
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.cashSupervise} />}>
                 <Route path="caja/aperturas" element={<CashSessionsPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.salesCreate} />}>
+                <Route path="pos" element={<PosPage />} />
+              </Route>
+              <Route element={<RequirePermission permission={PERMISSIONS.salesRead} />}>
+                <Route path="ventas" element={<SalesPage />} />
+                <Route path="ventas/:saleId" element={<SalePage />} />
               </Route>
               <Route element={<RequirePermission permission={PERMISSIONS.cashRegistersRead} />}>
                 <Route path="cajas" element={<CashRegistersPage />} />

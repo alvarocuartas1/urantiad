@@ -116,6 +116,10 @@ docs/postman/      # colección "URANTIAD API"
 - **Anular** (`sales.cancel`, administrador) exige motivo: las unidades vuelven al costo con que salieron (el último costo no cambia) y el efectivo sale de la caja de la venta si sigue abierta, o de la caja abierta de quien anula. La venta nunca se borra.
 - Se bloquean la apertura, los productos (en orden de id) y la secuencia: dos ventas simultáneas de la última unidad no la venden dos veces.
 - Permisos `sales.create` y `sales.read` (administrador y cajero; el cajero solo ve sus ventas), `sales.read_all` y `sales.cancel` (administrador). El costo de las líneas solo se muestra con `products.view_costs`.
+- En el frontend:
+  - `/pos` "Punto de venta", pensado para teclado y lector de código de barras: el escáner queda siempre enfocado (escanear de nuevo suma una unidad), cantidades y descuentos editables en la tabla, aviso de stock, cliente con **F4** y cobro con **F2**. El cobro abre con efectivo por el total y el foco en "Recibido"; muestra el cambio y admite pagos mixtos. Enter confirma, y en el resumen de la venta Enter inicia la siguiente. Los totales se previsualizan con el mismo redondeo del backend; si un precio cambió, el POS recarga los productos del carrito.
+  - `/ventas` (búsqueda, estado y fechas) y `/ventas/:id` (líneas, pagos, cambio y anulación para el administrador).
+  - "Mi caja" suma las ventas y anulaciones en efectivo; los movimientos de caja e inventario enlazan la venta de origen.
 
 Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje claro", "code": "CODIGO_ERROR" }`.
 

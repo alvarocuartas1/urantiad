@@ -11,8 +11,10 @@ export function CashSessionSummary({ session }: CashSessionSummaryProps) {
   const { summary } = session
   const figures = [
     { label: 'Dinero inicial', value: summary.opening_amount },
+    { label: 'Ventas en efectivo', value: summary.total_cash_sales },
     { label: 'Ingresos', value: summary.total_income },
     { label: 'Retiros', value: summary.total_withdrawals },
+    { label: 'Anulaciones en efectivo', value: summary.total_cash_cancellations },
   ]
 
   return (
@@ -30,7 +32,7 @@ export function CashSessionSummary({ session }: CashSessionSummaryProps) {
         <CashSessionStatusBadge status={session.status} />
       </div>
 
-      <dl className="grid gap-3 sm:grid-cols-4">
+      <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {figures.map(({ label, value }) => (
           <div key={label} className="rounded-lg bg-slate-50 p-3">
             <dt className="text-xs text-slate-500">{label}</dt>

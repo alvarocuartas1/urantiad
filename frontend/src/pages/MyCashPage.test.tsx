@@ -47,6 +47,8 @@ const SESSION: CashSession = {
     opening_amount: '100000.00',
     total_income: '20000.00',
     total_withdrawals: '5000.00',
+    total_cash_sales: '0.00',
+    total_cash_cancellations: '0.00',
     expected_cash: '115000.00',
   },
 }

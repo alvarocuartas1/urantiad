@@ -1,7 +1,11 @@
 import { ArrowDown, ArrowUp, Lock, LockOpen } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { CashMovementType, CashSessionStatus } from '@/types/cash'
-import { CASH_MOVEMENT_TYPE_LABELS, CASH_SESSION_STATUS_LABELS } from '@/utils/cash'
+import {
+  CASH_MOVEMENT_TYPE_LABELS,
+  CASH_SESSION_STATUS_LABELS,
+  isInboundCashMovement,
+} from '@/utils/cash'
 
 /** Session status with color + icon + text: open lock in green, closed lock in gray. */
 export function CashSessionStatusBadge({ status }: { status: CashSessionStatus }) {
@@ -16,14 +20,15 @@ export function CashSessionStatusBadge({ status }: { status: CashSessionStatus }
   )
 }
 
-/** Movement type with color + icon + text: green up arrow for income, gray down for withdrawals. */
+/** Movement type with color + icon + text: green up arrow for cash in (income, sales), gray
+ * down arrow for cash out (withdrawals, cancelled sales). */
 export function CashMovementTypeBadge({ type }: { type: CashMovementType }) {
-  const income = type === 'income'
+  const inbound = isInboundCashMovement(type)
   return (
     <StatusBadge
       size="sm"
-      tone={income ? 'ok' : 'neutral'}
-      icon={income ? ArrowUp : ArrowDown}
+      tone={inbound ? 'ok' : 'neutral'}
+      icon={inbound ? ArrowUp : ArrowDown}
       label={CASH_MOVEMENT_TYPE_LABELS[type]}
     />
   )

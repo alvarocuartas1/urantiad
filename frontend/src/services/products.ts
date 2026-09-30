@@ -12,6 +12,10 @@ export function listProducts(params: ProductListParams): Promise<Page<Product>> 
   return apiRequest<Page<Product>>('/products', { query: { ...params } })
 }
 
+export function getProduct(id: number): Promise<Product> {
+  return apiRequest<Product>(`/products/${id}`)
+}
+
 export function createProduct(data: ProductCreate): Promise<Product> {
   return apiRequest<Product>('/products', { method: 'POST', body: data })
 }

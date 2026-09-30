@@ -6,7 +6,7 @@ import { FormActions } from '@/components/ui/FormActions'
 import { TextField } from '@/components/ui/FormField'
 import { Modal } from '@/components/ui/Modal'
 import { useCreateCashMovement } from '@/hooks/useCash'
-import type { CashMovementType, CashSession } from '@/types/cash'
+import type { CashSession, ManualCashMovementType } from '@/types/cash'
 import {
   CASH_MOVEMENT_CONCEPTS,
   buildCashMovementSchema,
@@ -16,14 +16,14 @@ import {
 import { getErrorMessage, isApiErrorCode } from '@/utils/errors'
 import { formatCurrency } from '@/utils/format'
 
-const TITLES: Record<CashMovementType, string> = {
+const TITLES: Record<ManualCashMovementType, string> = {
   income: 'Registrar ingreso',
   withdrawal: 'Registrar retiro',
 }
 
 interface CashMovementModalProps {
   session: CashSession
-  type: CashMovementType
+  type: ManualCashMovementType
   onClose: () => void
 }
 

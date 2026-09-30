@@ -8,6 +8,8 @@ import {
   Landmark,
   LogOut,
   Package,
+  Receipt,
+  ScanBarcode,
   ShoppingCart,
   Tags,
   Truck,
@@ -33,6 +35,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Inicio', icon: House, end: true },
+  { to: '/pos', label: 'Punto de venta', icon: ScanBarcode, permission: PERMISSIONS.salesCreate },
+  { to: '/ventas', label: 'Ventas', icon: Receipt, permission: PERMISSIONS.salesRead },
   { to: '/caja', label: 'Mi caja', icon: Wallet, permission: PERMISSIONS.cashOperate, end: true },
   { to: '/productos', label: 'Productos', icon: Package, permission: PERMISSIONS.productsRead },
   { to: '/categorias', label: 'Categorías', icon: Tags, permission: PERMISSIONS.productsRead },

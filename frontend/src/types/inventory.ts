@@ -27,6 +27,8 @@ export interface InventoryMovement {
   reason: string | null
   /** Purchase that originated the movement (entries and cancellations of purchases). */
   purchase: { id: number; number: string } | null
+  /** Sale that originated the movement (sales and their cancellations). */
+  sale: { id: number; number: string } | null
   user: { id: number; full_name: string }
   created_at: string
 }

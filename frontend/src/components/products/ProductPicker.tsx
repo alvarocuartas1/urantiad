@@ -6,7 +6,7 @@ import { listProducts } from '@/services/products'
 import type { Product } from '@/types/catalog'
 import { UNIT_ABBREVIATIONS } from '@/utils/catalog'
 import { getErrorMessage } from '@/utils/errors'
-import { formatQuantity } from '@/utils/format'
+import { formatCurrency, formatQuantity } from '@/utils/format'
 
 const RESULT_LIMIT = 8
 
@@ -16,6 +16,8 @@ interface ProductPickerProps {
   autoFocus?: boolean
   /** Lets a caller return the focus to the search (e.g. to scan the next product). */
   inputRef?: Ref<HTMLInputElement>
+  /** Also offer services (the POS sells both); the results then show the sale price. */
+  includeServices?: boolean
 }
 
 /** Exact SKU or barcode match, or the only result: what a barcode scan should pick. */
@@ -26,17 +28,24 @@ function pickScanned(products: Product[], term: string): Product | undefined {
 }
 
 /**
- * Physical product search by name, SKU or barcode. Pressing Enter (as barcode scanners do)
- * searches immediately and selects the exact match, without waiting for the debounce.
+ * Active product search by name, SKU or barcode (physical products only, unless
+ * `includeServices`). Pressing Enter (as barcode scanners do) searches immediately and selects
+ * the exact match, without waiting for the debounce.
  */
-export function ProductPicker({ onSelect, autoFocus = false, inputRef }: ProductPickerProps) {
+export function ProductPicker({
+  onSelect,
+  autoFocus = false,
+  inputRef,
+  includeServices = false,
+}: ProductPickerProps) {
   const inputId = useId()
   const [term, setTerm] = useState('')
   const [scanMessage, setScanMessage] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
   const search = useDebouncedValue(term.trim())
+  const type = includeServices ? undefined : ('product' as const)
   const { data, isFetching } = useProducts(
-    { page: 1, size: RESULT_LIMIT, search, type: 'product', is_active: true },
+    { page: 1, size: RESULT_LIMIT, search, type, is_active: true },
     { enabled: search.length > 0 },
   )
   const results = search && data ? data.items : []
@@ -54,7 +63,7 @@ export function ProductPicker({ onSelect, autoFocus = false, inputRef }: Product
         page: 1,
         size: RESULT_LIMIT,
         search: value,
-        type: 'product',
+        type,
         is_active: true,
       })
       const product = pickScanned(page.items, value)
@@ -120,9 +129,15 @@ export function ProductPicker({ onSelect, autoFocus = false, inputRef }: Product
                     {product.barcode && ` · ${product.barcode}`}
                   </span>
                 </span>
-                <span className="text-xs whitespace-nowrap text-slate-600">
-                  Stock {formatQuantity(product.current_stock)}{' '}
-                  {UNIT_ABBREVIATIONS[product.unit_of_measure]}
+                <span className="text-right text-xs whitespace-nowrap text-slate-600">
+                  {includeServices && (
+                    <span className="block font-medium text-slate-900">
+                      {formatCurrency(product.sale_price)}
+                    </span>
+                  )}
+                  {product.type === 'service'
+                    ? 'Servicio'
+                    : `Stock ${formatQuantity(product.current_stock)} ${UNIT_ABBREVIATIONS[product.unit_of_measure]}`}
                 </span>
               </button>
             </li>

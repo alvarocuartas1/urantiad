@@ -19,6 +19,10 @@ export const PERMISSIONS = {
   cashRegistersManage: 'cash_registers.manage',
   cashOperate: 'cash.operate',
   cashSupervise: 'cash.supervise',
+  salesCreate: 'sales.create',
+  salesRead: 'sales.read',
+  salesReadAll: 'sales.read_all',
+  salesCancel: 'sales.cancel',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

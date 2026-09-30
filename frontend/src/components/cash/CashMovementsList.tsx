@@ -1,8 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { Alert } from '@/components/ui/Alert'
 import { Pagination } from '@/components/ui/Pagination'
+import { useAuth } from '@/hooks/useAuth'
 import { useCashMovements } from '@/hooks/useCash'
+import { PERMISSIONS } from '@/types/auth'
 import type { CashMovement } from '@/types/cash'
+import { isInboundCashMovement } from '@/utils/cash'
 import { getErrorMessage } from '@/utils/errors'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { CashMovementTypeBadge } from './CashBadges'
@@ -23,7 +27,7 @@ export function CashMovementsList({ sessionId }: { sessionId: number }) {
   if (data.items.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
-        Todavía no hay ingresos ni retiros.
+        Todavía no hay movimientos.
       </p>
     )
   }
@@ -36,6 +40,8 @@ export function CashMovementsList({ sessionId }: { sessionId: number }) {
 }
 
 function CashMovementsTable({ movements }: { movements: CashMovement[] }) {
+  const { hasPermission } = useAuth()
+  const canReadSales = hasPermission(PERMISSIONS.salesRead)
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-left text-sm">
@@ -67,9 +73,20 @@ function CashMovementsTable({ movements }: { movements: CashMovement[] }) {
               <td className="px-4 py-3">
                 <CashMovementTypeBadge type={movement.movement_type} />
               </td>
-              <td className="px-4 py-3 text-slate-900">{movement.concept}</td>
+              <td className="px-4 py-3 text-slate-900">
+                {movement.sale && canReadSales ? (
+                  <Link
+                    to={`/ventas/${movement.sale.id}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {movement.concept}
+                  </Link>
+                ) : (
+                  movement.concept
+                )}
+              </td>
               <td className="px-4 py-3 text-right font-medium whitespace-nowrap text-slate-900 tabular-nums">
-                {movement.movement_type === 'income' ? '+' : '−'}
+                {isInboundCashMovement(movement.movement_type) ? '+' : '−'}
                 {formatCurrency(movement.amount)}
               </td>
               <td className="px-4 py-3 text-slate-700">{movement.user.full_name}</td>

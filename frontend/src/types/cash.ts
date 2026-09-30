@@ -45,7 +45,11 @@ export interface CashSummary {
   opening_amount: string
   total_income: string
   total_withdrawals: string
-  /** Opening amount + income - withdrawals. */
+  /** Cash part of the sales. */
+  total_cash_sales: string
+  /** Cash given back for cancelled sales. */
+  total_cash_cancellations: string
+  /** Opening amount + income + cash sales − withdrawals − cash cancellations. */
   expected_cash: string
 }
 
@@ -75,7 +79,9 @@ export interface CashSessionListParams {
   date_to?: string
 }
 
-export type CashMovementType = 'income' | 'withdrawal'
+/** Types a user registers by hand; sales register their own. */
+export type ManualCashMovementType = 'income' | 'withdrawal'
+export type CashMovementType = ManualCashMovementType | 'sale' | 'sale_cancellation'
 
 export interface CashMovement {
   id: number
@@ -83,12 +89,14 @@ export interface CashMovement {
   movement_type: CashMovementType
   amount: string
   concept: string
+  /** Sale that originated the movement. */
+  sale: { id: number; number: string } | null
   user: UserSummary
   created_at: string
 }
 
 export interface CashMovementCreate {
-  movement_type: CashMovementType
+  movement_type: ManualCashMovementType
   amount: string
   concept: string
 }

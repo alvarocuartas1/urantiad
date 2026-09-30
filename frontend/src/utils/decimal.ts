@@ -36,6 +36,11 @@ export function fromCents(cents: bigint): string {
   return `${sign}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, '0')}`
 }
 
+/** `numerator / denominator` rounded half up (like ROUND_HALF_UP); both non-negative. */
+export function divideHalfUp(numerator: bigint, denominator: bigint): bigint {
+  return (2n * numerator + denominator) / (2n * denominator)
+}
+
 /** Negative when a < b, zero when equal, positive when a > b. */
 export function compareDecimals(a: string, b: string): number {
   const difference = toCents(a) - toCents(b)

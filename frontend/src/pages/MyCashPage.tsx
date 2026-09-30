@@ -7,13 +7,13 @@ import { OpenSessionForm } from '@/components/cash/OpenSessionForm'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { useCurrentCashSession } from '@/hooks/useCash'
-import type { CashMovementType } from '@/types/cash'
+import type { ManualCashMovementType } from '@/types/cash'
 import { getErrorMessage } from '@/utils/errors'
 
 /** The cashier's own register: open it, or see its cash and record income and withdrawals. */
 function MyCashPage() {
   const { data: session, isPending, isError, error } = useCurrentCashSession()
-  const [movementType, setMovementType] = useState<CashMovementType | null>(null)
+  const [movementType, setMovementType] = useState<ManualCashMovementType | null>(null)
 
   return (
     <section className="space-y-4">
@@ -39,7 +39,7 @@ function MyCashPage() {
       {session && (
         <>
           <CashSessionSummary session={session} />
-          <h2 className="text-lg font-semibold text-slate-900">Ingresos y retiros</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Movimientos de caja</h2>
           <CashMovementsList sessionId={session.id} />
         </>
       )}
