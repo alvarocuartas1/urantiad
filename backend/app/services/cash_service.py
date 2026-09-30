@@ -328,16 +328,18 @@ def record_cash_movement(
     concept: str,
     *,
     sale: Sale | None = None,
+    expected_cash: Decimal | None = None,
 ) -> CashMovement:
     """Record a cash movement in `session`, without committing.
 
     `session` must be locked by the caller (`for_update=True`) so concurrent movements see
-    each other. Outgoing movements cannot exceed the expected cash.
+    each other. Outgoing movements cannot exceed the expected cash; a caller that already
+    computed it with the session locked passes it as `expected_cash` to skip the query.
     """
     if session.status != CashSessionStatus.OPEN:
         raise _session_closed()
     if not movement_type.is_inbound:
-        available = summary(db, session).expected_cash
+        available = summary(db, session).expected_cash if expected_cash is None else expected_cash
         if amount > available:
             raise ConflictError(
                 f"Efectivo insuficiente en caja: disponible {format_money(available)}, "
@@ -367,7 +369,9 @@ def create_movement(
         )
     movement_type = CashMovementType(data.movement_type)
     expected = summary(db, session).expected_cash
-    movement = record_cash_movement(db, session, movement_type, data.amount, actor, data.concept)
+    movement = record_cash_movement(
+        db, session, movement_type, data.amount, actor, data.concept, expected_cash=expected
+    )
     sign = 1 if movement_type.is_inbound else -1
     audit_service.record(
         db,
