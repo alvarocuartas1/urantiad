@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
+
+# Database backups (scripts/backup.sh)
+backups/
 
 # Python
 __pycache__/

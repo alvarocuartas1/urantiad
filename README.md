@@ -1,30 +1,62 @@
 # URANTIAD
 
-Sistema web full stack de **POS + Inventario + Compras + Proveedores + Caja + Reportes + Dashboard** para un negocio de productos comestibles, bebidas, productos de consumo y servicios de fotocopias e impresiones.
+Sistema web full stack de **punto de venta, inventario, compras, proveedores, caja, reportes, estadísticas y auditoría** para un negocio de productos comestibles, bebidas, productos de consumo y servicios de fotocopias e impresiones.
 
-> Estado: en desarrollo por etapas. Ver [docs/PROGRESS.md](docs/PROGRESS.md) y la especificación funcional en [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md).
+Proyecto de portafolio construido por etapas con criterios de producción: cada operación de dinero o inventario es transaccional, los registros operativos nunca se borran, los permisos se validan en el backend y todo el flujo está cubierto por pruebas contra PostgreSQL real. Especificación funcional en [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md) y decisiones por etapa en [docs/PROGRESS.md](docs/PROGRESS.md).
+
+| Punto de venta | Dashboard |
+|---|---|
+| ![Punto de venta con carrito y cobro](docs/screenshots/pos.png) | ![Dashboard del día](docs/screenshots/dashboard.png) |
+| **Estadísticas** | **Auditoría** |
+| ![Estadísticas de ventas y rotación](docs/screenshots/estadisticas.png) | ![Detalle de auditoría con IP y navegador](docs/screenshots/auditoria.png) |
+
+## Funcionalidades
+
+- **POS** pensado para lector de código de barras y teclado (F2 cobrar, F4 cliente), pagos mixtos, descuentos por línea y por venta, cambio en efectivo y anulación con reversión de inventario y caja.
+- **Inventario** con costo promedio ponderado, ajustes con motivo, historial de movimientos, alertas por nivel de stock y sugerencia de reposición.
+- **Compras** en borrador y confirmación con consecutivo, entrada de inventario, historial de costos y anulación que restaura el costo exacto.
+- **Caja**: apertura, ingresos, retiros, arqueo y cierre con diferencia (sobrante o faltante) y supervisión de todas las aperturas.
+- **Reportes** de ventas, compras, inventario y caja con exportación a CSV para Excel; **dashboard** del día y **estadísticas** (tendencia, más vendidos, participación por categoría y método de pago, rotación de inventario).
+- **Auditoría** inmutable (trigger de PostgreSQL) con valores anteriores y nuevos, IP y navegador.
+- **Usuarios, roles y permisos** (Administrador, Cajero, Inventario) con JWT, refresh token rotativo en cookie `httpOnly` y bloqueo por intentos fallidos.
+
+## Decisiones técnicas destacadas
+
+- **Integridad**: una venta (consecutivo, líneas, pagos, salidas de inventario y movimiento de caja) es una sola transacción. El stock se modifica con `SELECT … FOR UPDATE` bloqueando productos en orden de id, y los consecutivos salen de una tabla de secuencias bloqueada: sin sobreventa, sin huecos ni duplicados. Pruebas de concurrencia con hilos y sesiones reales verifican cada bloqueo.
+- **Dinero exacto**: `NUMERIC(14,2)` y `Decimal` en el backend; en el frontend los importes viajan como texto y se calculan en centavos (`bigint`) con el mismo redondeo del backend.
+- **Nada se borra**: ventas y compras se anulan con movimientos inversos; productos, proveedores y usuarios se desactivan.
+- **Permisos explícitos** por endpoint (sin bypass para el administrador); los costos y márgenes solo se muestran con `products.view_costs`, también en reportes y estadísticas.
+- **Rendimiento**: reportes y estadísticas son consultas agrupadas únicas (sin N+1), índices trigram para búsquedas y carga del frontend dividida por rutas (el POS no descarga la librería de gráficos).
+- **Producción**: Caddy con HTTPS automático sirve el frontend y hace de proxy de la API en el mismo origen; backend sin puerto público, base de datos en red interna, respaldos con `pg_dump`.
 
 ## Stack
 
 | Capa | Tecnologías |
 |---|---|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, React Router, TanStack Query, React Hook Form + Zod |
-| Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (síncrono), Alembic, psycopg 3 |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, React Router, TanStack Query, React Hook Form + Zod, Recharts |
+| Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (síncrono), Alembic, psycopg 3, Argon2, JWT |
 | Base de datos | PostgreSQL 17 |
-| Calidad | Ruff, pytest, ESLint, Prettier, Vitest, React Testing Library |
-| Infraestructura | Docker Compose, GitHub Actions, uv |
+| Calidad | Ruff, pytest (469 pruebas), ESLint, Prettier, Vitest + React Testing Library (164 pruebas) |
+| Infraestructura | Docker Compose, Caddy, GitHub Actions, uv, Postman |
 
 ## Arquitectura
 
+```mermaid
+flowchart LR
+    B[Navegador<br/>React + TanStack Query] -->|HTTPS| C[Caddy<br/>frontend + proxy /api]
+    C -->|/api/v1| R[Routers FastAPI<br/>permisos y validación]
+    R --> S[Servicios<br/>lógica de negocio y transacciones]
+    S --> M[Modelos SQLAlchemy]
+    M --> P[(PostgreSQL)]
 ```
-Frontend (React) → API REST /api/v1 → Routers → Servicios → Modelos (SQLAlchemy) → PostgreSQL
-```
+
+En desarrollo el frontend corre en el servidor de Vite y llama a la API directamente (CORS); en producción ambos quedan detrás de Caddy en el mismo origen.
 
 ```
 backend/
   app/
     api/v1/        # routers y endpoints (sin lógica de negocio)
-    core/          # configuración, base de datos, manejo de errores
+    core/          # configuración, base de datos, errores, permisos, seguridad, origen de la petición
     models/        # modelos SQLAlchemy (Base con convención de nombres)
     schemas/       # schemas Pydantic de entrada/salida
     services/      # lógica de negocio
@@ -34,10 +66,14 @@ backend/
   tests/           # pytest contra PostgreSQL real
 frontend/
   src/
-    pages/ components/ hooks/ services/ types/ utils/   # carpetas creadas a medida que se necesitan
-docker/postgres/   # script de inicio (crea la base de datos de pruebas)
+    pages/ components/ hooks/ services/ types/ utils/
+docker/postgres/   # script de inicio de desarrollo (crea la base de datos de pruebas)
+docker/caddy/      # Caddyfile de producción
+scripts/           # respaldo y restauración de la base de producción
 docs/postman/      # colección "URANTIAD API"
 ```
+
+## Módulos
 
 ### Autenticación y permisos
 
@@ -162,10 +198,10 @@ Todas las respuestas de error de la API tienen el formato `{ "detail": "mensaje 
 
 ## Requisitos
 
-- Docker y Docker Compose.
+- Docker y Docker Compose (desarrollo y producción).
 - Para desarrollo local fuera de Docker: Python 3.12+ con [uv](https://docs.astral.sh/uv/) y Node.js 24+.
 
-## Puesta en marcha con Docker
+## Desarrollo con Docker
 
 ```bash
 cp .env.example .env
@@ -234,8 +270,14 @@ npm run dev
 | `.env` / `backend/.env` | `ALLOW_NEGATIVE_STOCK` | Permite que las salidas dejen stock negativo (por defecto `false`) |
 | `backend/.env` | `BUSINESS_TIMEZONE` | Zona horaria con la que los reportes agrupan por día y el dashboard define "hoy" (por defecto `America/Bogota`) |
 | `frontend/.env` | `VITE_API_URL` | URL base de la API |
+| `.env.production` | `DOMAIN` | Dominio público; Caddy obtiene su certificado HTTPS (`localhost` usa uno local, para pruebas) |
+| `.env.production` | `POSTGRES_*`, `JWT_SECRET_KEY`, `ALLOW_NEGATIVE_STOCK`, `BUSINESS_TIMEZONE`, `LOG_LEVEL` | Como en desarrollo; contraseña y secreto obligatorios |
+| `.env.production` | `WEB_CONCURRENCY` | Procesos del backend (por defecto 2) |
+| `.env.production` | `WEB_SUBNET` | Subred de Caddy y el backend; el backend solo acepta `X-Forwarded-For` desde ella |
+| `.env.production` | `BACKUP_KEEP_DAYS` | Días que `scripts/backup.sh` conserva cada respaldo (por defecto 14) |
+| `.env.production` | `HTTP_PORT`, `HTTPS_PORT` | Puertos publicados por Caddy (por defecto 80 y 443; cambiarlos solo para pruebas locales) |
 
-Los archivos `.env` nunca se versionan; mantener actualizados los `.env.example`.
+Los archivos `.env` y `.env.production` nunca se versionan; mantener actualizados los `.env.example` y `.env.production.example`.
 
 ## Migraciones
 
@@ -273,6 +315,85 @@ GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) ejecuta en
 
 - **Backend:** Ruff (lint y formato), migraciones contra PostgreSQL y pytest.
 - **Frontend:** ESLint, Prettier, TypeScript, Vitest y build.
+- **Imágenes de producción:** construye y levanta `docker-compose.prod.yml` con `DOMAIN=localhost` y comprueba a través de Caddy (HTTPS) la salud de la API, una ruta del frontend, la política de seguridad de contenido y que el backend no esté publicado.
+
+## Despliegue en producción
+
+Un servidor (VPS) con Docker ejecuta tres contenedores definidos en [docker-compose.prod.yml](docker-compose.prod.yml):
+
+| Servicio | Función | Expuesto |
+|---|---|---|
+| `caddy` | HTTPS automático (Let's Encrypt), sirve el frontend compilado y hace de proxy de `/api` ([docker/caddy/Caddyfile](docker/caddy/Caddyfile)) | Puertos 80 y 443 |
+| `backend` | FastAPI con uvicorn (2 procesos, usuario sin privilegios); aplica las migraciones al arrancar | Solo a Caddy |
+| `db` | PostgreSQL 17 con volumen persistente | Solo al backend (red interna) |
+
+Frontend y API comparten origen: no hay CORS y la cookie de sesión viaja solo por HTTPS (`COOKIE_SECURE=true`). Swagger está desactivado en producción. Caddy añade HSTS, `Content-Security-Policy` y otras cabeceras de seguridad, y cachea para siempre los archivos con hash (`/assets`) mientras `index.html` se revalida en cada visita.
+
+### Primera instalación
+
+1. Servidor Linux con Docker Engine y el plugin Compose, con los puertos 80 y 443 abiertos (y el 22 para SSH; nada más).
+2. Registro DNS `A` (y `AAAA` si hay IPv6) del dominio apuntando al servidor. Caddy obtiene el certificado al arrancar, así que el DNS debe estar propagado.
+3. Código y configuración:
+
+   ```bash
+   git clone <repositorio> /opt/urantiad && cd /opt/urantiad
+   cp .env.production.example .env.production
+   chmod 600 .env.production
+   # Editar DOMAIN y generar POSTGRES_PASSWORD y JWT_SECRET_KEY (los comandos están en el archivo)
+   ```
+
+4. Construir y arrancar:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+   docker compose -f docker-compose.prod.yml --env-file .env.production ps   # todo "healthy"/"running"
+   ```
+
+5. Crear el primer administrador (pide la contraseña):
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec backend python -m app.cli create-admin
+   ```
+
+6. Abrir `https://<dominio>`, iniciar sesión y crear los usuarios, cajas y catálogo.
+
+### Actualizar
+
+```bash
+cd /opt/urantiad
+scripts/backup.sh                 # respaldo antes de cambiar de versión
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+El backend aplica las migraciones pendientes al arrancar (PostgreSQL revierte completa una migración que falle). Los datos viven en volúmenes de Docker y no se tocan al reconstruir.
+
+### Respaldos
+
+- [scripts/backup.sh](scripts/backup.sh) guarda un `pg_dump` comprimido en `backups/urantiad-AAAAMMDD-HHMMSS.dump` y borra los de más de `BACKUP_KEEP_DAYS` días (14 por defecto). Programarlo a diario con cron:
+
+  ```cron
+  30 2 * * * /opt/urantiad/scripts/backup.sh >> /opt/urantiad/backups/backup.log 2>&1
+  ```
+
+- **Copiar los respaldos fuera del servidor** (otro equipo, almacenamiento en la nube): un respaldo en el mismo disco no sirve si se pierde el servidor.
+- [scripts/restore.sh](scripts/restore.sh) `backups/<archivo>.dump` reemplaza todos los datos por los del respaldo: pide escribir el nombre de la base para confirmar, detiene el backend mientras restaura y lo hace en una sola transacción (si falla, quedan los datos anteriores). Conviene probar la restauración de vez en cuando.
+
+### IP en la auditoría
+
+La auditoría guarda la IP del cliente. Caddy envía la IP real en `X-Forwarded-For` (ignora la que envíe el cliente) y el backend solo acepta esa cabecera desde la red de Caddy (`--forwarded-allow-ips` = `WEB_SUBNET`). Desde cualquier otro origen se usa la dirección de la conexión, así que la IP no se puede falsificar.
+
+### Lista de verificación de seguridad
+
+- `.env.production` con permisos `600`, secretos generados al azar y nunca versionado.
+- Solo los puertos 22, 80 y 443 abiertos en el firewall; acceso SSH con llave.
+- Actualizaciones del sistema operativo y de Docker aplicadas; reconstruir las imágenes periódicamente para recibir parches de las imágenes base.
+- Respaldos diarios copiados fuera del servidor y restauración probada.
+- Contraseña fuerte para el administrador; cada persona con su propio usuario (la auditoría identifica quién hizo cada cambio).
+
+### Despliegue automático (mejora futura)
+
+Para un solo servidor basta la actualización manual de arriba. Un despliegue automático desde GitHub Actions (SSH al servidor con una llave en los secretos del repositorio, tras pasar la CI) queda como mejora futura.
 
 ## API
 

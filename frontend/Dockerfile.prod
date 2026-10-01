@@ -1,0 +1,17 @@
+# Production image: the built app served by Caddy (see docker/caddy/Caddyfile), which also
+# proxies /api to the backend. The API is on the same origin, hence the relative URL.
+FROM node:24-alpine AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+ENV VITE_API_URL=/api/v1
+RUN npm run build
+
+
+FROM caddy:2-alpine
+
+COPY --from=build /app/dist /srv

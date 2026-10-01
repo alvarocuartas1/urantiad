@@ -19,13 +19,13 @@ Este archivo lo actualiza Claude al cerrar cada etapa. Mantenerlo breve.
 | 10 | Auditoría | Terminada |
 | 11 | Reportes | Terminada |
 | 12 | Dashboard | Terminada |
-| 13 | Estadísticas, pulido final, README y despliegue (13a, 13b y 13c terminadas; 13d despliegue) | En curso |
+| 13 | Estadísticas, pulido final, README y despliegue (13a–13d) | Terminada |
 
 Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b interfaz del POS).
 
 ## Pendientes anotados
 
-- **Etapa 13d (plan aprobado):** despliegue en VPS con Docker: backend de producción (uvicorn con `--proxy-headers` y `--forwarded-allow-ips` limitado al proxy, necesario para la IP real en la auditoría), Caddy (HTTPS automático, sirve el frontend y hace de proxy de `/api`, mismo origen), `docker-compose.prod.yml`, respaldos con `pg_dump`, build de imágenes en CI y README final.
+- **Despliegue automático (CD):** desde GitHub Actions por SSH al VPS, tras pasar la CI; documentado como mejora futura (para un servidor basta `git pull` + `up -d --build`).
 - **Cuando haya datos reales en producción:** política de retención de la auditoría (tarea en modo `app.audit_maintenance`). Consultar antes con el contador el tiempo legal de conservación.
 - **Al llegar funciones que dependan de clientes (crédito, facturación electrónica):** auditar clientes. Categorías y cajas quedan sin auditar salvo que se necesite.
 
@@ -110,6 +110,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Métodos de pago: `payment_method_service` (el listado sale de `sale_service`) y router propio. `code` generado del nombre (`slugify` ASCII, sufijo `_2`, `_3`… si está tomado) e inmutable; nombre único sin distinguir mayúsculas (índice `uq_payment_methods_name_lower`, como las cajas). El efectivo no se desactiva (409 `CASH_METHOD_REQUIRED`); `is_cash` no se asigna por API. `GET /payment-methods` exige `sales.read` y con `include_inactive`, `payment_methods.manage` (admin). Se audita crear y editar (entidad `payment_method`). Frontend: tipo `PaymentMethodDetail` aparte (el `PaymentMethod` del POS no cambia); las mutaciones invalidan el prefijo `payment-methods` (el POS lo carga con `staleTime: Infinity`: otros cajeros ven el cambio al recargar).
 - Origen en la auditoría: `RequestOriginMiddleware` (ASGI puro) guarda IP y `User-Agent` (255) en una `ContextVar` que lee `audit_service.record`. Host que no es IP (p. ej. `testclient`) → NULL; `INET` se lee como `IPv4Address`/`IPv6Address`. La app no confía en `X-Forwarded-For`: la IP real detrás del proxy la resuelve uvicorn (13d). `describeUserAgent` resume el navegador en el detalle ("Edge · Windows"), con el texto completo en `title`.
 - División del frontend: Login, Inicio y POS en el paquete principal (el cajero nunca espera); las demás páginas con `React.lazy` y un `Suspense` en el `Outlet` de `AppLayout`. Paquete principal de 656 KB (183 KB gzip) a 371 KB (116 KB gzip), sin la advertencia de 500 KB.
+- Producción: `docker-compose.prod.yml` (proyecto `urantiad-prod`, separado del de desarrollo) con Caddy, backend y PostgreSQL. Solo Caddy publica puertos; red `web` (Caddy + backend, subred fija `WEB_SUBNET`) y red `data` interna (backend + db). Mismo origen (`VITE_API_URL=/api/v1`): sin CORS, cookie `Secure` + `SameSite=Lax`. Variables obligatorias con `:?` en `.env.production` (`--env-file`). Backend: `Dockerfile` con targets `dev` (compose de desarrollo) y `prod` (`--no-dev`, usuario sin privilegios, 2 workers, migraciones al arrancar, healthcheck con `start-period` de 120 s porque migrar en una máquina lenta tardó minutos). uvicorn con `--proxy-headers --forwarded-allow-ips=WEB_SUBNET`: la auditoría registra la IP que entrega Caddy (verificado: la del cliente, no la de Caddy).
+- Caddy (`docker/caddy/Caddyfile`, montado en la imagen oficial con el `dist/`): HTTPS automático, `try_files` para la SPA, `/assets` inmutable e `index.html` con `no-cache`, compresión zstd/gzip, HSTS, CSP estricta (`script-src 'self'` sin `unsafe-eval`; `style-src 'unsafe-inline'` por los estilos en línea de React), sin cabecera `Server`. Zod 4 prueba `new Function` al crear esquemas de objeto (antes de que corra `main.tsx`) y la CSP lo reporta como violación: `public/zod-config.js`, script clásico cargado antes del bundle, define `globalThis.__zod_globalConfig.jitless`.
+- Respaldos: `scripts/backup.sh` (`pg_dump --format=custom` a `backups/`, nombre temporal hasta terminar, retención `BACKUP_KEEP_DAYS`) y `scripts/restore.sh` (confirmación escribiendo el nombre de la base, backend detenido, `pg_restore --clean --if-exists --single-transaction`). Restaurar recrea el trigger de inmutabilidad de la auditoría. `backups/` y `.env.production` en `.gitignore` (excepción para `.env.production.example`).
+- CI: job `production-images` que construye y levanta el stack de producción con `DOMAIN=localhost` y comprueba por HTTPS salud, ruta de la SPA, CSP y que el backend no esté publicado.
 - Frontend del dashboard: `useDashboard` con `staleTime: 0` y `refetchInterval` de 60 s (TanStack lo pausa con la pestaña oculta). Barras de métodos de pago con CSS y porcentaje en texto (`sharePercent`, centavos); sin librería de gráficos hasta la etapa de estadísticas. Filas de listas sin `flex-wrap` y columna derecha `shrink-0` (en móvil, el monto y la insignia saltaban a la izquierda).
 
 ## Registro de etapas terminadas
@@ -305,4 +309,10 @@ Una etapa grande puede dividirse en sub-etapas (ej. 8a backend de ventas, 8b int
 - Colección Postman (carpeta Payment methods) y README actualizados.
 - Recorrido en navegador real (Edge sin ventana + `playwright-core`) con base desechable: crear "Bre-B" (orden 8, código `bre_b`), nombre duplicado junto al campo, desactivar "Otro", efectivo no desactivable, auditoría con IP y "Edge · Windows", navegación por páginas diferidas, POS con "Bre-B" y sin "Otro" sin descargar módulos de otras páginas, móvil sin scroll horizontal.
 - 469 tests backend, 164 tests frontend.
+
+### Etapa 13d — Despliegue en producción
+- `backend/Dockerfile` con targets `dev` y `prod`; `frontend/Dockerfile.prod` (build + Caddy); `docker/caddy/Caddyfile`; `docker-compose.prod.yml`; `.env.production.example`; `scripts/backup.sh` y `scripts/restore.sh`; `public/zod-config.js`; job de CI `production-images`.
+- README de portafolio: funcionalidades, decisiones técnicas, arquitectura (Mermaid), capturas (`docs/screenshots/`) y guía de despliegue (instalación, actualización, respaldos, IP en la auditoría, lista de seguridad).
+- Verificación del stack de producción en local (Docker, Caddy con `DOMAIN=localhost` en 8080/8443 porque el puerto 80 estaba ocupado por otro servicio): HTTP→HTTPS (308), cabeceras de seguridad, assets inmutables comprimidos, rutas de la SPA con recarga directa, `/api/v1/openapi.json` 404, backend y base sin puertos publicados; `create-admin` dentro del contenedor; cookie de sesión `Secure`/`HttpOnly`/`Lax` y sesión que sobrevive a la recarga; venta en el POS; auditoría con la IP del cliente y no la de Caddy; respaldo, cambio posterior, confirmación errónea cancelada, restauración (datos previos de vuelta, trigger de auditoría activo); actualización con `up -d --build` sin pérdida de datos. Corregidos: healthcheck demasiado corto para migrar en el primer arranque y violaciones de CSP por la prueba de `eval` de Zod.
+- Sin cambios de base de datos ni de API. 469 tests backend, 164 tests frontend.
 

@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# Two targets:
+# - dev (docker-compose.yml): every dependency; the compose file mounts the code and reloads.
+# - prod (docker-compose.prod.yml): no dev tools, non-root user, behind the Caddy proxy.
+FROM python:3.12-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
 
@@ -11,6 +14,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+
+FROM base AS dev
+
 # Install dependencies first to take advantage of the layer cache.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
@@ -19,3 +25,27 @@ COPY . .
 
 EXPOSE 8000
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+
+
+FROM base AS prod
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
+
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY app ./app
+
+RUN useradd --system --uid 1000 --no-create-home urantiad
+USER urantiad
+
+# Only the proxy (Caddy) may set the client address through X-Forwarded-For: requests from
+# anywhere else keep their connection address, so the audit log cannot be spoofed.
+ENV FORWARDED_ALLOW_IPS=127.0.0.1 \
+    WEB_CONCURRENCY=2
+
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"]
+# Migrations run once, before the workers start.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"$FORWARDED_ALLOW_IPS\" --workers \"$WEB_CONCURRENCY\""]

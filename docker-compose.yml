@@ -21,7 +21,9 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      target: dev
     environment:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-urantiad}:${POSTGRES_PASSWORD:-urantiad}@db:5432/${POSTGRES_DB:-urantiad}

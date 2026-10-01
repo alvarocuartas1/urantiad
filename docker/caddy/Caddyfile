@@ -1,0 +1,41 @@
+# Production web server: HTTPS (Let's Encrypt for a public domain; a local certificate for
+# "localhost"), the built frontend and the /api proxy, all on the same origin.
+{
+	# The admin API is not needed: configuration changes restart the container.
+	admin off
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		# Inline styles: React sets style attributes (bar widths, charts).
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	# Caddy replaces any X-Forwarded-For sent by the client with the real client address;
+	# the backend trusts that header only from this proxy.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+
+		# Hashed file names: cache forever. index.html: always revalidate, so a new version
+		# is picked up on reload.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@app not path /assets/*
+		header @app Cache-Control "no-cache"
+
+		# Client-side routes (/ventas/12…) are served by the app.
+		try_files {path} /index.html
+		file_server
+	}
+}

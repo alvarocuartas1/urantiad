@@ -1,0 +1,83 @@
+# Production: Caddy (HTTPS, frontend, /api proxy) + FastAPI + PostgreSQL.
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Only Caddy publishes ports. The database is on an internal network the proxy cannot reach.
+name: urantiad-prod
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-urantiad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-urantiad}
+      TZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-urantiad}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-urantiad}
+      # Same origin as the frontend (through Caddy): no cross-origin requests to allow.
+      CORS_ORIGINS: ""
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env.production}
+      COOKIE_SECURE: "true"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ALLOW_NEGATIVE_STOCK: ${ALLOW_NEGATIVE_STOCK:-false}
+      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-America/Bogota}
+      # Caddy's network: only it may set the client IP (X-Forwarded-For) for the audit log.
+      FORWARDED_ALLOW_IPS: ${WEB_SUBNET:-172.30.10.0/24}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    networks:
+      - web
+      - data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env.production}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  web:
+    ipam:
+      config:
+        - subnet: ${WEB_SUBNET:-172.30.10.0/24}
+  # No route outside: only the backend reaches the database.
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

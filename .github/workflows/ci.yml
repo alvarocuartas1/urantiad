@@ -74,3 +74,33 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  production-images:
+    name: Production images (build, smoke test through Caddy)
+    runs-on: ubuntu-latest
+    env:
+      # Throwaway values: this job only checks that the production stack builds and serves.
+      DOMAIN: localhost
+      POSTGRES_PASSWORD: ci-only-password
+      JWT_SECRET_KEY: ci-only-secret-key-with-at-least-32-characters
+      COMPOSE_FILE: docker-compose.prod.yml
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and start
+        run: docker compose up --detach --build --wait
+      - name: Smoke test
+        run: |
+          # Caddy issues a local certificate for "localhost": skip its verification.
+          curl --fail --silent --show-error --insecure --retry 10 --retry-all-errors \
+            --retry-delay 2 https://localhost/api/v1/health
+          curl --fail --silent --insecure https://localhost/ventas | grep --quiet 'id="root"'
+          curl --silent --insecure --head https://localhost/ \
+            | grep --quiet --ignore-case '^content-security-policy:'
+          # Only Caddy is published: the backend and the database are not reachable.
+          ! curl --silent --max-time 3 http://localhost:8000/api/v1/health
+      - name: Logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop
+        if: always()
+        run: docker compose down --volumes
