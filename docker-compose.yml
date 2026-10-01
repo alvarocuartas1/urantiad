@@ -44,6 +44,8 @@ services:
     build: ./frontend
     environment:
       VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}/api/v1
+      # Detect file changes by polling: bind mounts on Windows send no change events.
+      WATCH_POLLING: "true"
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:

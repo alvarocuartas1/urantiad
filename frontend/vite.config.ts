@@ -12,6 +12,9 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Docker on Windows does not forward file change events into the container, so the dev
+    // server polls the files instead (set by docker-compose.yml only).
+    watch: process.env.WATCH_POLLING === 'true' ? { usePolling: true, interval: 300 } : undefined,
   },
   test: {
     environment: 'jsdom',
