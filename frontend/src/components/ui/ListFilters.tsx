@@ -22,7 +22,7 @@ export function SearchInput({ label, value, placeholder, onChange }: SearchInput
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-9 text-sm focus:outline-2 focus:outline-slate-900"
+        className="focus:outline-brand-600 w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-9 text-sm focus:outline-2"
       />
     </label>
   )

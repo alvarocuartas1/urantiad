@@ -110,7 +110,7 @@ export function PurchaseLinesEditor({
                         autoComplete="off"
                         placeholder={name === 'discount' ? '0' : undefined}
                         onKeyDown={onKeyDown}
-                        className={`${width} rounded-lg border border-slate-300 px-2 py-1.5 text-right text-sm focus:outline-2 focus:outline-slate-900 aria-invalid:border-red-500`}
+                        className={`${width} focus:outline-brand-600 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-sm focus:outline-2 aria-invalid:border-red-500`}
                         {...register(`items.${index}.${name}`)}
                       />
                       {message && (

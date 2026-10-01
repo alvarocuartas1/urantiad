@@ -3,8 +3,8 @@ import type { SalesTrend, TrendPoint } from '@/types/statistics'
 import { formatCurrency } from '@/utils/format'
 import { formatCompactCurrency, formatPeriod } from '@/utils/statistics'
 
-// Tailwind slate: one series, so one hue; grid and axes stay recessive.
-const BAR_COLOR = '#334155' // slate-700
+// One series, so one hue (the brand color); grid and axes stay recessive slate.
+const BAR_COLOR = '#4338ca' // brand-700
 const CURSOR_COLOR = '#f1f5f9' // slate-100
 const GRID_COLOR = '#e2e8f0' // slate-200
 const AXIS_TEXT_COLOR = '#64748b' // slate-500

@@ -7,7 +7,7 @@ export function AuditEntityLink({ log }: { log: AuditLog }) {
   const path = auditEntityPath(log)
   if (path === null) return <span className="font-medium text-slate-900">{log.entity_label}</span>
   return (
-    <Link to={path} className="font-medium text-slate-900 underline-offset-2 hover:underline">
+    <Link to={path} className="text-brand-800 font-medium underline-offset-2 hover:underline">
       {log.entity_label}
     </Link>
   )

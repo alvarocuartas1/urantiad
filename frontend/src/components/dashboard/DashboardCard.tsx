@@ -27,7 +27,7 @@ export function DashboardCard({ title, subtitle, action, children }: DashboardCa
         {action && (
           <Link
             to={action.to}
-            className="text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            className="text-brand-800 hover:text-brand-950 text-sm font-medium underline underline-offset-2"
           >
             {action.label}
           </Link>

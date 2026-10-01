@@ -98,7 +98,7 @@ export function MovementsTable({ movements, showProduct = true, showCosts }: Mov
                   {movement.purchase && (
                     <Link
                       to={`/compras/${movement.purchase.id}`}
-                      className="block font-medium text-slate-900 underline-offset-2 hover:underline"
+                      className="text-brand-800 block font-medium underline-offset-2 hover:underline"
                     >
                       {movement.purchase.number}
                     </Link>
@@ -125,7 +125,7 @@ function SaleReference({ sale }: { sale: { id: number; number: string } }) {
   return (
     <Link
       to={`/ventas/${sale.id}`}
-      className="block font-medium text-slate-900 underline-offset-2 hover:underline"
+      className="text-brand-800 block font-medium underline-offset-2 hover:underline"
     >
       {sale.number}
     </Link>

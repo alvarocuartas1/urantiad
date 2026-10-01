@@ -37,7 +37,7 @@ function ReportsPage() {
             className={({ isActive }) =>
               `-mb-px flex flex-1 items-center justify-center gap-2 border-b-2 px-2 py-2 text-sm font-medium whitespace-nowrap sm:flex-none sm:px-4 ${
                 isActive
-                  ? 'border-slate-900 text-slate-900'
+                  ? 'border-brand-700 text-brand-800'
                   : 'border-transparent text-slate-600 hover:text-slate-900'
               }`
             }

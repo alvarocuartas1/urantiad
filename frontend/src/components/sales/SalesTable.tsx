@@ -38,7 +38,7 @@ export function SalesTable({ sales }: { sales: SaleSummary[] }) {
               <td className={CELL_CLASS}>
                 <Link
                   to={`/ventas/${sale.id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
+                  className="text-brand-800 font-medium underline-offset-2 hover:underline"
                 >
                   {sale.number}
                 </Link>

@@ -39,7 +39,7 @@ export function PurchasesTable({ purchases }: { purchases: PurchaseSummary[] }) 
               <td className={CELL_CLASS}>
                 <Link
                   to={`/compras/${purchase.id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
+                  className="text-brand-800 font-medium underline-offset-2 hover:underline"
                 >
                   {purchase.number ?? `Borrador #${purchase.id}`}
                 </Link>

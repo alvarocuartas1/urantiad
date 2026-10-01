@@ -22,7 +22,7 @@ export function PaymentMethodsCard({ sales }: { sales: SalesToday }) {
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-100" aria-hidden="true">
-                  <div className="h-2 rounded-full bg-slate-700" style={{ width: `${percent}%` }} />
+                  <div className="bg-brand-700 h-2 rounded-full" style={{ width: `${percent}%` }} />
                 </div>
                 <p className="text-xs text-slate-600">
                   {percent} % · {method.sales_count} {method.sales_count === 1 ? 'venta' : 'ventas'}

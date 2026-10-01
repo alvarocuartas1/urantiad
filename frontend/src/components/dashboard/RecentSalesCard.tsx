@@ -16,7 +16,7 @@ export function RecentSalesCard({ sales }: { sales: SaleSummary[] }) {
               <div className="min-w-0">
                 <Link
                   to={`/ventas/${sale.id}`}
-                  className="text-sm font-medium text-slate-900 underline-offset-2 hover:underline"
+                  className="text-brand-800 text-sm font-medium underline-offset-2 hover:underline"
                 >
                   {sale.number}
                 </Link>

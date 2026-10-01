@@ -42,8 +42,8 @@ export function CashSessionSummary({ session }: CashSessionSummaryProps) {
             </dd>
           </div>
         ))}
-        <div className="rounded-lg bg-slate-900 p-3 text-white">
-          <dt className="text-xs text-slate-300">Efectivo esperado</dt>
+        <div className="bg-brand-900 rounded-lg p-3 text-white">
+          <dt className="text-brand-100 text-xs">Efectivo esperado</dt>
           <dd className="text-lg font-semibold tabular-nums">
             {formatCurrency(summary.expected_cash)}
           </dd>

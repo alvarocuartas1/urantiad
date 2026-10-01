@@ -16,7 +16,7 @@ import {
 } from '@/utils/sale'
 
 const INPUT_CLASS =
-  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm tabular-nums focus:outline-2 focus:outline-slate-900 aria-invalid:border-red-500'
+  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm tabular-nums focus:outline-2 focus:outline-brand-600 aria-invalid:border-red-500'
 
 interface PaymentModalProps {
   total: string

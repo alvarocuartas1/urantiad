@@ -52,7 +52,7 @@ export function TopProductsCard({ dateFrom, dateTo }: { dateFrom: string; dateTo
             onClick={() => setMetric(value)}
             className={`rounded-lg px-3 py-1 text-sm font-medium ${
               metric === value
-                ? 'bg-slate-900 text-white'
+                ? 'bg-brand-700 text-white'
                 : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >

@@ -33,7 +33,7 @@ export function ShareBars({ items }: { items: ShareItem[] }) {
           </div>
           <div className="h-2 rounded-full bg-slate-100" aria-hidden="true">
             <div
-              className="h-2 rounded-full bg-slate-700"
+              className="bg-brand-700 h-2 rounded-full"
               style={{ width: `${sharePercent(item.amount, largest)}%` }}
             />
           </div>

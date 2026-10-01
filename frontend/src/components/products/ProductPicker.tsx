@@ -100,7 +100,7 @@ export function ProductPicker({
             setScanMessage(null)
           }}
           onKeyDown={(event) => void onKeyDown(event)}
-          className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-9 pl-9 text-sm focus:outline-2 focus:outline-slate-900"
+          className="focus:outline-brand-600 w-full rounded-lg border border-slate-300 bg-white py-2 pr-9 pl-9 text-sm focus:outline-2"
         />
         {(isFetching || scanning) && (
           <LoaderCircle

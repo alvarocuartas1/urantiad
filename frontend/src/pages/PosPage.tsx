@@ -41,7 +41,7 @@ function PosPage() {
           <p className="text-sm text-slate-700">Debe abrir una caja antes de registrar ventas.</p>
           <Link
             to="/caja"
-            className="mt-3 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="bg-brand-700 hover:bg-brand-800 mt-3 inline-flex rounded-lg px-4 py-2 text-sm font-medium text-white"
           >
             Ir a Mi caja
           </Link>

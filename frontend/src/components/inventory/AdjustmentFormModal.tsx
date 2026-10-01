@@ -130,7 +130,7 @@ function AdjustmentForm({ product, onChangeProduct, onClose }: AdjustmentFormPro
           {DIRECTIONS.map(({ value, label, icon: Icon }) => (
             <label
               key={value}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 has-checked:border-slate-900 has-checked:bg-slate-900 has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-slate-900"
+              className="has-checked:border-brand-700 has-checked:bg-brand-700 has-focus-visible:outline-brand-600 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2"
             >
               <input type="radio" value={value} className="sr-only" {...register('direction')} />
               <Icon aria-hidden="true" className="size-4" />

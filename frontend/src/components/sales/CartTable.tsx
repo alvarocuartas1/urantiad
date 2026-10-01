@@ -7,7 +7,7 @@ import { lineErrors, stockWarning, type CartLine, type LineAmounts } from '@/uti
 
 const HEADER_CLASS = 'px-3 py-2 font-semibold'
 const INPUT_CLASS =
-  'w-full rounded-md border border-slate-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-2 focus:outline-slate-900 aria-invalid:border-red-500'
+  'w-full rounded-md border border-slate-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-2 focus:outline-brand-600 aria-invalid:border-red-500'
 
 interface CartTableProps {
   lines: CartLine[]
